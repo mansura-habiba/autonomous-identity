@@ -1,0 +1,14 @@
+.asid-demo/*
+.venv/*
+*.pyc
+*.egg-info/*
+_pycache/*
+.asid-swap-demo/*
+.asid-langchain-demo/*
+.asid-delegate-demo/*
+.asid-langgraph-multi/*
+.asid-a2a-demo/*
+goal.md
+.asid-a2a-spiffe-fed-demo/*
+primary-idea.md
+ROADMAP.md
