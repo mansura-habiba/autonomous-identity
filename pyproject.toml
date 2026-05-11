@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autonomous-identity"
+version = "0.1.0"
+description = "Verifiable identity envelopes for autonomous system actions."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Autonomous Identity contributors" }]
+dependencies = [
+    "cryptography>=42.0.0",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.1.0"]
+langchain = ["langchain-core>=0.2.0"]
+langflow = []
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+asid = "autonomous_identity.cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/example/autonomous-identity"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

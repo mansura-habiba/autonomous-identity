@@ -1,0 +1,2 @@
+[console_scripts]
+asid = autonomous_identity.cli.main:main

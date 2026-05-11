@@ -1,0 +1,8 @@
+identity:
+  adapter: merkle_chain
+
+storage:
+  backend: file
+  data_dir: .asid
+
+crypto: {}
