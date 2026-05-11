@@ -38,6 +38,8 @@ class ProvenanceReference:
 
 @dataclass
 class Delegation:
+    """Handoff edge. ``allowed_scopes`` may be empty for identity-only delegation (no auth strings)."""
+
     parent_subject: str
     child_subject: str
     allowed_scopes: list[str]

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, replace
 from datetime import datetime, timezone
 from typing import Any
 
+from autonomous_identity.core.delegation_util import effective_scopes_for_actor
 from autonomous_identity.core.envelope import (
+    Delegation,
     IdentityEnvelope,
     OwnerBinding,
     ProvenanceReference,
@@ -80,7 +82,7 @@ class MerkleChainIdentityAdapter:
             audit_ref=None,
             signature_chain=[],
             delegations=list(context.get("delegations", [])),
-            metadata=dict(context.get("metadata", {})),
+            metadata=_merge_metadata(context),
         )
         env_hash = envelope_commitment_hash(envelope)
         node = MerkleIdentityNode(
@@ -160,9 +162,98 @@ class MerkleChainIdentityAdapter:
         self,
         envelope: IdentityEnvelope,
         child_subject: str,
+        allowed_scopes: list[str],
         caveats: dict[str, Any],
+        *,
+        expires_at: datetime | None = None,
     ) -> IdentityEnvelope:
-        raise NotImplementedError("Delegation is planned for a future release")
+        now = datetime.now(timezone.utc)
+        if child_subject == envelope.system_identifier:
+            raise VerificationError("child_subject must differ from current system_identifier")
+        if expires_at is not None and expires_at <= now:
+            raise VerificationError("expires_at must be in the future")
+
+        effective = effective_scopes_for_actor(envelope)
+        if allowed_scopes:
+            if not effective:
+                raise VerificationError(
+                    "Cannot delegate with non-empty allowed_scopes: parent has no effective "
+                    "authorization (for a root actor set context['issuer_scopes'] at issue time; "
+                    "for a delegated actor ensure a prior edge granted non-empty allowed_scopes)."
+                )
+            for s in allowed_scopes:
+                if s not in effective:
+                    raise VerificationError(
+                        f"Scope {s!r} is not allowed (not in parent effective scopes {sorted(effective)})"
+                    )
+
+        parent_tip = envelope.metadata.get("merkle_tip_hash")
+        if not parent_tip:
+            raise VerificationError("Parent envelope has no merkle tip")
+
+        new_del = Delegation(
+            parent_subject=envelope.system_identifier,
+            child_subject=child_subject,
+            allowed_scopes=list(allowed_scopes),
+            caveats=dict(caveats),
+            expires_at=expires_at,
+        )
+        # Strip root ``issuer_scopes`` so capability/authorization for this actor comes only
+        # from ``Delegation.allowed_scopes`` (identity proof stays on the envelope core).
+        child_meta = {**envelope.metadata, "delegated_from": envelope.system_identifier}
+        child_meta.pop("issuer_scopes", None)
+        child = replace(
+            envelope,
+            system_identifier=child_subject,
+            delegations=[*envelope.delegations, new_del],
+            signature_chain=[],
+            audit_ref=None,
+            verified_at=None,
+            issued_at=now,
+            metadata=child_meta,
+        )
+        env_hash = envelope_commitment_hash(child)
+        node = MerkleIdentityNode(
+            node_id=str(uuid.uuid4()),
+            previous_hash=str(parent_tip),
+            subject=child_subject,
+            action_type="delegate",
+            envelope_hash=env_hash,
+            input_hash=None,
+            output_hash=None,
+            timestamp=now.isoformat(),
+            signature="",
+        )
+        nh = node.node_hash()
+        node.signature = self._signer.sign_b64(nh.encode("utf-8"))
+        pub_hex = envelope.metadata.get("merkle_public_key") or child.metadata.get("merkle_public_key")
+        if not pub_hex:
+            raise VerificationError("Missing merkle_public_key on parent envelope")
+        child.signature_chain = [node.signature]
+        child.metadata = {
+            **child.metadata,
+            "merkle_public_key": pub_hex,
+            "merkle_tip_node_id": node.node_id,
+            "merkle_tip_hash": nh,
+        }
+        self._tips[child_subject] = nh
+        ref = self._audit_store.append(
+            {
+                "kind": "merkle_node",
+                "system_identifier": child_subject,
+                "node": {**node.__dict__, "node_hash": nh},
+                "delegation": {
+                    "parent_subject": new_del.parent_subject,
+                    "child_subject": new_del.child_subject,
+                    "allowed_scopes": new_del.allowed_scopes,
+                    "caveats": new_del.caveats,
+                    "expires_at": new_del.expires_at.isoformat() if new_del.expires_at else None,
+                },
+                "envelope_commitment": envelope_commitment_payload(child),
+            }
+        )
+        child.audit_ref = ref
+        return child
 
     def revoke(self, system_identifier: str, reason: str) -> None:
         return None
@@ -208,3 +299,10 @@ class MerkleChainIdentityAdapter:
 def _node_from_dict(node_raw: dict[str, Any]) -> MerkleIdentityNode:
     allowed = {f.name for f in fields(MerkleIdentityNode)}
     return MerkleIdentityNode(**{k: v for k, v in node_raw.items() if k in allowed})
+
+
+def _merge_metadata(context: dict[str, Any]) -> dict[str, Any]:
+    meta = dict(context.get("metadata", {}))
+    if "issuer_scopes" in context:
+        meta["issuer_scopes"] = list(context["issuer_scopes"])
+    return meta

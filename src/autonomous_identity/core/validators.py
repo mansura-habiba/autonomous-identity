@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from enum import Enum
 
 from autonomous_identity.core.envelope import IdentityEnvelope, ProvenanceReference
@@ -14,18 +15,26 @@ class ValidatorStrictness(str, Enum):
 class IdentityValidator:
     """Executable checks for the eight identity properties."""
 
-    def __init__(self, strictness: ValidatorStrictness = ValidatorStrictness.STRICT) -> None:
+    def __init__(
+        self,
+        strictness: ValidatorStrictness = ValidatorStrictness.STRICT,
+        *,
+        enforce_scope_convention: bool = False,
+    ) -> None:
         self.strictness = strictness
+        self.enforce_scope_convention = enforce_scope_convention
 
     def validate(self, envelope: IdentityEnvelope) -> None:
         self.check_persistent(envelope)
         self.check_addressable(envelope)
         self.check_verifiable(envelope)
         self.check_attenuable(envelope)
+        self.check_delegation_grants_not_expired(envelope)
         self.check_instance_specific(envelope)
         self.check_provenance_aware(envelope)
         self.check_lifecycle_controlled(envelope)
         self.check_auditable(envelope)
+        self.check_scope_vocabulary(envelope)
 
     def check_persistent(self, envelope: IdentityEnvelope) -> None:
         if not envelope.system_identifier:
@@ -41,8 +50,20 @@ class IdentityValidator:
 
     def check_attenuable(self, envelope: IdentityEnvelope) -> None:
         for delegation in envelope.delegations:
-            if not delegation.allowed_scopes:
-                raise ValidationError("Delegation must explicitly narrow allowed scopes")
+            # ``allowed_scopes`` may be empty for an identity-only handoff (no capability
+            # strings on this edge); authorization otherwise lives in non-empty lists.
+            if delegation.parent_subject == delegation.child_subject:
+                raise ValidationError("Delegation parent and child subjects must differ")
+
+    def check_delegation_grants_not_expired(self, envelope: IdentityEnvelope) -> None:
+        now = datetime.now(timezone.utc)
+        for d in envelope.delegations:
+            if d.child_subject != envelope.system_identifier:
+                continue
+            if d.expires_at is not None and d.expires_at <= now:
+                raise ValidationError(
+                    f"Delegation grant from {d.parent_subject!r} has expired for this actor"
+                )
 
     def check_instance_specific(self, envelope: IdentityEnvelope) -> None:
         if not envelope.runtime_instance.instance_id:
@@ -68,6 +89,14 @@ class IdentityValidator:
     def check_auditable(self, envelope: IdentityEnvelope) -> None:
         if not envelope.audit_ref:
             raise ValidationError("Missing audit reference")
+
+    def check_scope_vocabulary(self, envelope: IdentityEnvelope) -> None:
+        """When ``enforce_scope_convention`` is set, require ``asid:`` v1 scope strings."""
+        if not self.enforce_scope_convention:
+            return
+        from autonomous_identity.core.scope_convention import validate_envelope_scope_strings
+
+        validate_envelope_scope_strings(envelope)
 
 
 def _provenance_any(provenance: ProvenanceReference) -> bool:

@@ -32,7 +32,7 @@ def list_adapters() -> list[str]:
 
 
 def _install_default_adapters() -> None:
-    if "merkle_chain" in _registry:
+    if "merkle_chain" in _registry and "spiffe" in _registry:
         return
 
     def _merkle_factory(deps: dict[str, Any]) -> Any:
@@ -42,4 +42,21 @@ def _install_default_adapters() -> None:
         audit_store = deps["audit_store"]
         return MerkleChainIdentityAdapter(signer, audit_store=audit_store)
 
+    def _spiffe_factory(deps: dict[str, Any]) -> Any:
+        from autonomous_identity.adapters.spiffe import SpiffeIdentityAdapter
+
+        signer = deps["signer"]
+        audit_store = deps["audit_store"]
+        # Optional adapter config (TTL / audience) can be threaded through
+        # deps["adapter_config"] when the facade is taught to forward it; the
+        # adapter falls back to sensible defaults otherwise.
+        config = deps.get("adapter_config") or {}
+        return SpiffeIdentityAdapter(
+            signer,
+            audit_store=audit_store,
+            svid_ttl=config.get("svid_ttl"),
+            default_audience=config.get("default_audience"),
+        )
+
     register_adapter("merkle_chain", _merkle_factory)
+    register_adapter("spiffe", _spiffe_factory)

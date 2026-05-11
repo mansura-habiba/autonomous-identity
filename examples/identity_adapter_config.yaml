@@ -1,5 +1,7 @@
 identity:
   adapter: merkle_chain
+  # Optional: enforce asid:<namespace>:<service>:<capability> on issuer_scopes and delegations
+  # enforce_scope_convention: true
 
 storage:
   backend: file

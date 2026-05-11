@@ -1,6 +1,13 @@
 cryptography>=42.0.0
 PyYAML>=6.0
 
+[a2a]
+a2a-sdk>=1.0.1
+httpx>=0.28.0
+sse-starlette>=2.2.0
+starlette>=0.46.0
+uvicorn>=0.34.0
+
 [dev]
 pytest>=8.0
 
@@ -9,5 +16,18 @@ langchain-core>=0.2.0
 
 [langflow]
 
+[langgraph]
+langgraph>=0.2.0
+langchain-core>=0.2.0
+fastmcp>=3.1.0
+langchain-mcp-adapters>=0.0.9
+
 [postgres]
 psycopg[binary]>=3.1.0
+
+[tracing-langfuse]
+langfuse>=2.0.0
+
+[tracing-otel]
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0

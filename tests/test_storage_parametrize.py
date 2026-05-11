@@ -47,7 +47,7 @@ def test_lifecycle_revoke_blocks_action(backend: str, tmp_path: Path) -> None:
         return "ok"
 
     with identity.exercise(env):
-        assert boom() == "ok"
+        assert boom()["result"] == "ok"
 
     identity.revoke(env.system_identifier, "test")
 

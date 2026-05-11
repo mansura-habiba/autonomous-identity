@@ -3,10 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from autonomous_identity.application.facade import AutonomousIdentity
 from autonomous_identity.core.exceptions import AutonomousIdentityError
+from autonomous_identity.core.serialize import envelope_from_serializable, envelope_to_serializable
 
 
 def _build_identity(args: argparse.Namespace) -> AutonomousIdentity:
@@ -44,6 +46,8 @@ def cmd_issue(args: argparse.Namespace) -> int:
         },
         "attestation_chain": ["local:dev-attestation"],
     }
+    if args.issuer_scopes:
+        ctx["issuer_scopes"] = [s.strip() for s in args.issuer_scopes.split(",") if s.strip()]
     envelope = identity.issue_envelope(ctx)
     print(json.dumps({"audit_ref": envelope.audit_ref, "system_identifier": envelope.system_identifier}, indent=2))
     return 0
@@ -73,6 +77,26 @@ def cmd_inspect(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_delegate(args: argparse.Namespace) -> int:
+    identity = _build_identity(args)
+    raw = json.loads(Path(args.parent_json).read_text(encoding="utf-8"))
+    parent = envelope_from_serializable(raw)
+    scopes = [s.strip() for s in args.scopes.split(",") if s.strip()]
+    caveats = json.loads(args.caveats_json) if args.caveats_json else {}
+    exp = None
+    if args.expires:
+        exp = datetime.fromisoformat(args.expires.replace("Z", "+00:00"))
+    child = identity.delegate(
+        parent,
+        args.child_system_id,
+        scopes,
+        caveats,
+        expires_at=exp,
+    )
+    print(json.dumps(envelope_to_serializable(child), indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="asid")
     p.add_argument("--config", type=Path, help="YAML config path")
@@ -97,6 +121,14 @@ def main(argv: list[str] | None = None) -> None:
     pi.add_argument("--region", default="local")
     pi.add_argument("--code-hash", required=True)
     pi.add_argument("--policy-hash", required=True)
+    pi.add_argument(
+        "--issuer-scopes",
+        default=None,
+        help=(
+            "Comma-separated root scopes allowed for later delegation (stored in envelope metadata). "
+            "For a production naming scheme see docs/SCOPE_CONVENTION.md (asid v1)."
+        ),
+    )
 
     pv = sub.add_parser("verify", help="Verify merkle audit event signature")
     pv.set_defaults(func=cmd_verify)
@@ -110,6 +142,14 @@ def main(argv: list[str] | None = None) -> None:
     pin = sub.add_parser("inspect", help="Print raw audit record")
     pin.set_defaults(func=cmd_inspect)
     pin.add_argument("--audit-ref", required=True)
+
+    pd = sub.add_parser("delegate", help="Create child envelope from parent JSON (narrowed scopes)")
+    pd.set_defaults(func=cmd_delegate)
+    pd.add_argument("--parent-json", type=Path, required=True, help="JSON file from envelope export")
+    pd.add_argument("--child-system-id", required=True)
+    pd.add_argument("--scopes", required=True, help="Comma-separated subset of parent effective scopes")
+    pd.add_argument("--caveats-json", default="{}", dest="caveats_json")
+    pd.add_argument("--expires", default=None, help="ISO-8601 expiry for the delegation grant")
 
     args = p.parse_args(argv)
     try:

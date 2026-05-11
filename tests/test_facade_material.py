@@ -27,4 +27,4 @@ def test_material_action_requires_exercise(tmp_path: Path) -> None:
         f()
 
     with identity.exercise(env):
-        assert f() == 1
+        assert f()["result"] == 1

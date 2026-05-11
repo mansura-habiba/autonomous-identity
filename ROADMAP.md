@@ -1,39 +1,133 @@
 # Roadmap
 
-This document extends the product direction described in [goal.md](goal.md) and [primary-idea.md](primary-idea.md). It is not a commitment to ship dates.
+This document tracks **phases** from [goal.md](goal.md) (“The best phased roadmap”) against this repository, and points to [primary-idea.md](primary-idea.md) for the eight-property envelope story. It is not a commitment to ship dates.
 
-## Multi-principal handoff and delegation visibility
+---
 
-### Handoff primitives
+## Phase 1: Prove the envelope
 
-Support explicit **delegation steps** where principal A (human, service account, IdP subject, or peer agent) issues a **narrowed** capability to principal B (the runtime agent), with **monotone** scope reduction: downstream actors receive at most what upstream received, never more. Optional caveats should include **time bounds**, **audience** (who may rely on the delegation), and **trace** or **session** binding so a token cannot be replayed in unrelated contexts. Conceptually this aligns with attenuating delegation (for example macaroons or biscuits) as discussed in the primary idea document; the roadmap does not lock a single cryptographic format until an adapter is implemented.
+**Goal** ([goal.md](goal.md)):
 
-### Envelope reflection
+> Every material action gets a signed, auditable identity envelope.
 
-Use and extend the existing [`Delegation`](src/autonomous_identity/core/envelope.py) model on `IdentityEnvelope.delegations`: each handoff appends a **structured delegation record** (`parent_subject`, `child_subject`, `allowed_scopes`, `caveats`, optional `expires_at`). Validators already sketch **attenuable** checks (delegations must narrow scopes); future work ties **material actions** to the **active delegation chain** at action time, not only to the agent’s static identity.
+**Deliverables** (goal): `IdentityEnvelope`, `MerkleIdentityNode`, lifecycle registry, audit store, action decorator, verify command.
 
-### Audit reflection
+**Status in this repo**
 
-Each **handoff event** and each **material action** performed under delegated authority should produce **append-only audit** records that reference **which delegation edge** was in force when the action ran. Investigations should be able to answer: who handed off to whom, for which scopes, under which caveats, and at what time—without relying on a flat session token minted once at login.
+| Deliverable | Notes |
+|-------------|--------|
+| `IdentityEnvelope` + validator | Shipped: [`core/envelope.py`](src/autonomous_identity/core/envelope.py), [`core/validators.py`](src/autonomous_identity/core/validators.py). |
+| Merkle chain adapter | Shipped: [`adapters/merkle_chain.py`](src/autonomous_identity/adapters/merkle_chain.py). |
+| Lifecycle + audit stores | Shipped: file (default), SQLite, memory; optional Postgres extra ([`storage/`](src/autonomous_identity/storage/), [`application/config.py`](src/autonomous_identity/application/config.py)). |
+| Material actions | Shipped: `material_action` / `run_material_action` on [`AutonomousIdentity`](src/autonomous_identity/application/facade.py). |
+| CLI verify / issue / revoke / inspect | Shipped: [`cli/main.py`](src/autonomous_identity/cli/main.py). |
 
-### Cross-system handoff and Merkle DAG
+**Still to deepen:** audit payloads that cite **delegation edge ids** explicitly (see Phase 2); richer “verify the whole chain” UX where the adapter supports it.
 
-For **federated** or **multi-system** setups (for example organization IdP plus workload controller plus agent runtime), a single action may need to cite **multiple parents** at once: user intent, orchestrator instruction, runtime attestation snapshot, and policy decision. The linear **Merkle chain** adapter is a deliberate MVP choice; a later **Merkle DAG** (or equivalent graph commitment) is the natural fit so handoff evidence is not flattened into an arbitrary ordering. That work is explicitly **post-MVP** and composes with the same `IdentityEnvelope` and lifecycle model.
+---
 
-### API and CLI (planned, not shipped)
+## Phase 2: Prove delegation
 
-- Implement `IdentityAdapter.delegate(...)` end-to-end. Today [`MerkleChainIdentityAdapter`](src/autonomous_identity/adapters/merkle_chain.py) raises `NotImplementedError` for `delegate`; the protocol in [`adapters/base.py`](src/autonomous_identity/adapters/base.py) already defines the hook.
-- Add facade helpers (names TBD), for example `handoff(from_envelope, to_child_subject, caveats)` that build a new envelope with an appended `Delegation` and a new Merkle (or DAG) node.
-- Add CLI commands such as `asid delegate` to record a handoff in storage and emit an auditable receipt.
+**Goal** ([goal.md](goal.md)):
 
-## Framework UX (after delegation exists)
+> A parent autonomous system can delegate narrowed authority to a child system.
 
-- **LangChain:** support **per-tool scope maps** so each tool’s required scope can be checked against `envelope.delegations` after delegation and attenuation are first-class.
-- **Langflow:** extend [examples/langflow/README.md](examples/langflow/README.md) with patterns such as **handoff node → agent** flows, reusing [`wrap_tools_for_identity`](src/autonomous_identity/integrations/langflow/wrap_tools.py) once delegation metadata is available on the envelope used inside `identity.exercise(...)`.
+**Deliverables** (goal): `Delegation` object, scope narrowing, caveats, expiry, no authority expansion.
+
+**Status in this repo**
+
+| Deliverable | Notes |
+|-------------|--------|
+| `Delegation` on `IdentityEnvelope` | Shipped: [`core/envelope.py`](src/autonomous_identity/core/envelope.py). |
+| Scope narrowing (monotone) | Shipped when `allowed_scopes` is non-empty; optional root `metadata["issuer_scopes"]`; **stripped on delegated children**; effective set via [`delegation_util.py`](src/autonomous_identity/core/delegation_util.py). |
+| Identity-only handoff | Shipped: `allowed_scopes` may be `[]` (no capability strings on that edge). |
+| Caveats | Stored on each `Delegation`; **enforcement** of caveat semantics is still light / caller-driven. |
+| Expiry | Shipped on validate and material-action paths. |
+| No expansion | Shipped in Merkle `delegate` + tests. |
+| Optional **asid** vocabulary | Documented + opt-in enforcement: [docs/SCOPE_CONVENTION.md](docs/SCOPE_CONVENTION.md). |
+
+**Still roadmap:** richer **caveat enforcement**, **multi-hop policy UX**, **`handoff` sugar** for multi-party graphs, **delegation-edge ids** in audit rows, first-class **LangGraph / FastMCP** helpers (beyond examples).
+
+**Cross-system (post linear-MVP):** Merkle **DAG** or equivalent when an action must commit to **multiple parents** at once ([primary-idea.md](primary-idea.md) Merkle DAG section)—see end of this file.
+
+---
+
+## Phase 3: Prove framework adoption
+
+**Goal** ([goal.md](goal.md)):
+
+> LangChain/LangGraph developers can use it without understanding the cryptographic internals.
+
+**Deliverables** (goal): LangChain tool wrapper, LangGraph node wrapper, FastMCP tool middleware, simple config file.
+
+**Status in this repo**
+
+| Deliverable | Notes |
+|-------------|--------|
+| LangChain | Shipped: [`integrations/langchain.py`](src/autonomous_identity/integrations/langchain.py); docs in README / HOWTO. |
+| LangGraph | Shipped: [`integrations/langgraph.py`](src/autonomous_identity/integrations/langgraph.py); demo [`examples/langgraph_multi_agent_delegation.py`](examples/langgraph_multi_agent_delegation.py). |
+| Langflow | Partial: [`integrations/langflow/wrap_tools.py`](src/autonomous_identity/integrations/langflow/wrap_tools.py); [examples/langflow/README.md](examples/langflow/README.md) — extend with **handoff → agent** patterns and per-tool scope maps. |
+| FastMCP | Partial: used in **examples** (e.g. MCP research server + LangGraph demo); no dedicated **`integrations/fastmcp.py`** middleware package yet. |
+| Simple config | Shipped: YAML + `from_config` / `AutonomousIdentity.local` ([`application/config.py`](src/autonomous_identity/application/config.py)). |
+
+**Still roadmap:** **per-tool scope maps** for LangChain; Langflow docs and UX above; optional **FastMCP middleware** module mirroring LangChain’s pattern.
+
+---
+
+## Phase 4: Add provenance
+
+**Goal** ([goal.md](goal.md)):
+
+> The envelope links to code, model, config, policy, and deployment hashes.
+
+**Deliverables** (goal): `ProvenanceReference`, build metadata loader, hashes on envelope fields.
+
+**Status in this repo**
+
+| Deliverable | Notes |
+|-------------|--------|
+| `ProvenanceReference` on envelope | Shipped: [`core/envelope.py`](src/autonomous_identity/core/envelope.py); validator requires provenance (or dev placeholder in development strictness). |
+| Build metadata **loader** | **Pending:** automatic ingestion from CI / artefact / SBOM into issue context (today callers pass hashes explicitly). |
+| Richer provenance fields in practice | Incremental: optional hashes already in struct; deeper SLSA/in-toto style wiring leans toward Phase 5. |
+
+---
+
+## Phase 5: Add enterprise adapters
+
+**Goal** ([goal.md](goal.md)):
+
+> The same envelope can use real enterprise identity/provenance systems.
+
+**Deliverables** (goal): SPIFFE adapter, SLSA/in-toto adapter, COSE/JWS adapter, Vault/KMS signer, Postgres audit store.
+
+**Status in this repo**
+
+| Deliverable | Notes |
+|-------------|--------|
+| Postgres stores | Optional extra: see pyproject / README. |
+| SPIFFE, SLSA/in-toto, COSE/JWS, Vault/KMS | **Not started** as first-class adapters (intentionally out of early scope per goal.md). |
+
+---
+
+## Beyond goal.md Phase 5
+
+[goal.md](goal.md) “winning path” ends with **hybrid identity profiles** after enterprise adapters. Related directions from [primary-idea.md](primary-idea.md):
+
+- **Merkle DAG** (multi-parent identity graph) instead of flattening federated context into a single linear chain.
+- **Explicit delegation-edge ids** and audit indexing for investigations.
+- Items goal.md lists as **not** in version 1 (DID/VC, hardware attestation, threshold signatures, distributed ledger, etc.) remain **out of scope** until a deliberate phase pulls them in.
+
+---
+
+## Design alignment (primary idea)
+
+- The **eight envelope properties** in [primary-idea.md](primary-idea.md) (persistent through auditable) are **identity at the moment of exercise**.
+- **`issuer_scopes`** (root only), **`Delegation.allowed_scopes`**, and **`required_scope`** are an **optional authorization transport** on the same artifact—not a ninth identity property. Optional **`asid:`** grammar: [docs/SCOPE_CONVENTION.md](docs/SCOPE_CONVENTION.md).
+- Attenuating tokens in the primary idea map to the **delegation layer**; this library keeps that layer separate from the proof of *who* acted.
 
 ## Diagram: handoff chain
 
-Delegation edges are stored on the envelope and cited again on each material action’s audit path.
+Delegation edges live on the envelope. Optional scope strings narrow **authority** on each hop; the envelope core answers **who** (Table 8.1 in [primary-idea.md](primary-idea.md)).
 
 ```mermaid
 flowchart LR
@@ -41,7 +135,7 @@ flowchart LR
     orchestrator[OrchestratorSystem]
     agentInstance[AgentInstance]
     materialAction[MaterialAction]
-    userPrincipal -->|"delegate_scopes"| orchestrator
+    userPrincipal -->|"delegate optional scopes"| orchestrator
     orchestrator -->|"narrowed_delegate"| agentInstance
     agentInstance -->|"envelope_plus_audit"| materialAction
 ```

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Protocol
 
 from autonomous_identity.core.envelope import IdentityEnvelope
@@ -20,9 +21,12 @@ class IdentityAdapter(Protocol):
         self,
         envelope: IdentityEnvelope,
         child_subject: str,
+        allowed_scopes: list[str],
         caveats: dict[str, Any],
+        *,
+        expires_at: datetime | None = None,
     ) -> IdentityEnvelope:
-        """Return envelope with narrowed delegation (v0.1 may raise NotImplementedError)."""
+        """Return a new envelope for child_subject with appended Delegation (narrowed scopes)."""
 
     def revoke(self, system_identifier: str, reason: str) -> None:
         """Adapter-specific revocation hooks (registry usually updates lifecycle store)."""
