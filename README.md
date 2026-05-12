@@ -40,6 +40,35 @@ No single cryptographic primitive satisfies all eight perfectly. The library
 ships an `IdentityAdapter` protocol with multiple implementations, each
 strong on different axes; `primary-idea.md` Table 8.2 documents the trade-offs.
 
+For the long-form argument — fly-by-wire envelope protection as the analogue,
+what the eight properties mean operationally, and what changes on Tuesday
+afternoon when the envelope shows up — read
+[`docs/blog/identity-is-the-moment-of-action.md`](docs/blog/identity-is-the-moment-of-action.md).
+
+---
+
+## Two stages: identity first, delegation second
+
+Identity for a single AI system is one problem. Multi-agent delegation
+across trust domains is a different problem, harder, that builds on the
+first. The library separates them on purpose. Wire identity first.
+Add delegation only when you have a real second agent to delegate to.
+
+* **Stage 1 — Identity for any AI framework.** Drop-in recipes for
+  CrewAI, AutoGen, Pydantic AI, LangChain, Letta, HTTP services, and
+  plain Python. Single agent, single envelope, signed audit row per
+  material action. Read
+  [`docs/IDENTITY_INTEGRATION.md`](docs/IDENTITY_INTEGRATION.md).
+  For the **config-driven path** (operator-owned `agent.yaml` plus
+  CI-generated `provenance.json`, application code declares only
+  function names), read
+  [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md).
+* **Stage 2 — Multi-agent delegation and federation.** Parent→child
+  envelope handoff with monotone-decreasing scope, plus
+  cross-trust-domain federation for SPIFFE. Stage 2 builds on Stage 1
+  primitives. The LangGraph and A2A demos exercise this path; see
+  [`DEMO.md`](DEMO.md).
+
 ---
 
 ## What's in the library
@@ -106,6 +135,12 @@ in-toto/SLSA provenance binding, hardware attestation, threshold signatures.
 
 ### Framework integrations
 
+- **Framework-agnostic `IdentityRuntime`** — single object that bundles
+  envelope + facade; wraps any callable (sync or async) without mutating
+  it, and is a drop-in context manager. The base layer every framework
+  recipe in [`docs/IDENTITY_INTEGRATION.md`](docs/IDENTITY_INTEGRATION.md)
+  builds on. Works on CrewAI, AutoGen, Pydantic AI, Letta, HTTP services,
+  and plain Python with three lines of glue per framework.
 - **LangChain** — `identity_protected_tool` wrapper enforces
   `required_scope` at every tool invocation via `run_material_action`.
 - **LangGraph** — `wrap_langgraph_node(identity, envelope, fn)` runs each

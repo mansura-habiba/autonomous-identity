@@ -12,3 +12,11 @@ goal.md
 .asid-a2a-spiffe-fed-demo/*
 primary-idea.md
 ROADMAP.md
+.DS_Store
+docs/blog/*
+*.jsonl
+*lifecycle.json
+*.pem
+*.json
+src/.env
+*.db

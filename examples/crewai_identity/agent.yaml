@@ -1,0 +1,47 @@
+# Operator-owned identity config for the CrewAI inbox-triage agent.
+#
+# This file is mounted into the agent process (or sits next to the agent.py).
+# Application code does NOT contain any of the values below.
+#
+# Refresh path: edit this file, then redeploy. The agent reads it at startup.
+
+identity:
+  adapter: spiffe                   # spiffe | merkle_chain
+  data_dir: .asid-crewai-config-demo
+
+system:
+  identifier: spiffe://corp.example/agents/inbox-triage
+  instance_id: env:HOSTNAME         # `env:NAME` expands at startup to os.environ[NAME]
+  deployment_id: env:ASID_DEPLOYMENT_ID
+  environment: prod
+  region: env:REGION
+
+owner:
+  id: team:platform
+  type: team
+  responsibility_scope: inbox-automation
+
+attestation:
+  chain:
+    - local:bootstrap
+    - env:ASID_ATTESTATION_REF      # dropped if env var missing
+
+# The application code never declares these. Scopes are an operator concern.
+scopes:
+  issuer:                           # what THIS envelope may exercise
+    - web.read
+    - inbox.label
+    - text.summarise
+  tools:                            # function name → required scope
+    web_search: web.read
+    apply_label: inbox.label
+    summarise: text.summarise
+    # send_email intentionally NOT mapped — the agent cannot bind it as a
+    # tool without an explicit config addition. The default is deny.
+
+provenance:
+  file: ./provenance.json           # CI generates this; see Makefile
+  required: false                   # set true in production
+
+lifecycle:
+  svid_ttl_hours: 24

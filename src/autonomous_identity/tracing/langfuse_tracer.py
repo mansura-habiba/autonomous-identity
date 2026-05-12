@@ -51,8 +51,15 @@ class LangfuseTracer:
         secret_key: str | None = None,
         host: str | None = None,
         trace_name: str = "autonomous-identity",
+        service_name: str = "autonomous-identity",
         capture_io: bool = False,
     ) -> None:
+        # The Langfuse SDK boots OpenTelemetry under the hood. OTel reads its
+        # ``service.name`` resource attribute from this env var at SDK init
+        # time, which is BEFORE we get a handle on the OTel SDK. Setting it
+        # here keeps the default "unknown_service" out of every span.
+        os.environ.setdefault("OTEL_SERVICE_NAME", service_name)
+
         try:
             from langfuse import Langfuse  # type: ignore[import-not-found]
         except ImportError as exc:  # pragma: no cover
@@ -293,14 +300,79 @@ _NEVER_SHIP = {
 }
 
 
+# Per-span-kind allowlist. Anything not on this list is dropped before the
+# metadata is shipped to Langfuse. Trace-correlation fields (trace_id,
+# span_id, parent_id) are NOT included — Langfuse already attaches its own
+# OTel-level trace/span identifiers, so duplicating them in metadata is
+# pure noise. ``kind`` is always shipped.
+_KIND_ALLOWLIST: dict[str, frozenset[str]] = {
+    "asid.issue": frozenset({
+        # WHO + WHERE
+        "spiffe_id", "system_identifier", "trust_domain",
+        "owner_id", "adapter", "issuer_scopes",
+        # WHICH EXECUTION  (runtime instance)
+        "instance_id", "deployment_id", "environment", "region",
+        # WHAT PRODUCED IT  (provenance)
+        "code_hash", "policy_bundle_hash", "model_hash", "config_hash",
+        # HOW DO WE KNOW
+        "attestation_chain", "kid",
+        # UNTIL WHEN
+        "svid_exp",
+        # AUDIT
+        "audit_ref",
+    }),
+    "asid.delegate": frozenset({
+        # delegation edge itself
+        "parent_subject", "child_subject", "scopes", "federation",
+        "expires_at", "caveat_keys",
+        # resulting child identity (full envelope view)
+        "spiffe_id", "system_identifier", "trust_domain",
+        "owner_id", "delegation_depth",
+        "instance_id", "deployment_id", "environment", "region",
+        "code_hash", "policy_bundle_hash", "model_hash", "config_hash",
+        "attestation_chain", "kid", "svid_exp",
+        # audit
+        "audit_ref",
+    }),
+    "asid.exercise": frozenset({
+        "spiffe_id", "system_identifier", "trust_domain",
+        "lifecycle_state",
+    }),
+    "asid.material_action": frozenset({
+        # who's acting + with what authority
+        "action_type", "required_scope",
+        "spiffe_id", "system_identifier", "trust_domain", "owner_id",
+        # what the action did, fingerprinted
+        "input_hash", "output_hash",
+        # when the envelope was re-verified
+        "verified_at",
+        # audit
+        "audit_ref",
+    }),
+    "asid.verify": frozenset({"audit_ref", "outcome"}),
+    "asid.revoke": frozenset({"system_identifier", "spiffe_id", "reason"}),
+}
+
+
 def _safe_metadata(ctx: SpanContext) -> dict[str, Any]:
-    return {
-        "kind": ctx.kind,
-        "trace_id": ctx.trace_id,
-        "span_id": ctx.span_id,
-        "parent_id": ctx.parent_id,
-        **{k: v for k, v in ctx.attributes.items() if k not in _NEVER_SHIP},
-    }
+    """Build the metadata dict that's sent to Langfuse.
+
+    Drops everything not on the per-kind allowlist and everything in
+    ``_NEVER_SHIP``. The Langfuse UI already shows OTel ``trace_id`` and
+    ``span_id`` natively, so we don't duplicate them in metadata.
+    """
+    allowed = _KIND_ALLOWLIST.get(ctx.kind)
+    out: dict[str, Any] = {"kind": ctx.kind}
+    for k, v in ctx.attributes.items():
+        if k in _NEVER_SHIP:
+            continue
+        if allowed is not None and k not in allowed:
+            continue
+        if v is None or v == "" or v == []:
+            # Drop empty values so the UI panel stays readable.
+            continue
+        out[k] = v
+    return out
 
 
 def _safe_input(ctx: SpanContext, *, capture_io: bool) -> dict[str, Any] | None:

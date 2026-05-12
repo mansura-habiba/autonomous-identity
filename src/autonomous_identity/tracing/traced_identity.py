@@ -36,15 +36,97 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def _spiffe_attrs(envelope: IdentityEnvelope) -> dict[str, Any]:
-    """Pull out the headline attributes for any envelope-bearing span."""
+    """Headline identity attributes for any envelope-bearing span.
+
+    Returns the **always-relevant** subset: who this actor is, what trust
+    domain it belongs to, whether the lifecycle is interesting. For the
+    deeper "what produced it / which execution / who's accountable" view,
+    see :func:`_envelope_full_attrs` which is used on issue and delegate
+    spans where the answer to those questions is the whole point.
+
+    Telemetry hygiene rules applied here:
+
+    * If the envelope was minted by the SPIFFE adapter, ``system_identifier``
+      equals ``metadata['spiffe.id']``. We emit the SPIFFE-flavoured field
+      name only (``spiffe_id``) so the same value isn't shipped twice.
+    * ``lifecycle_state`` is dropped from spans when it's the default
+      ``"active"``. It only appears in the metadata when the envelope is
+      in an unusual state (``restricted`` / ``suspended`` / ``revoked`` /
+      ``retired``), which is where the field carries operational meaning.
+    """
     md = envelope.metadata or {}
-    return {
-        "system_identifier": envelope.system_identifier,
-        "spiffe_id": md.get("spiffe.id"),
-        "trust_domain": md.get("spiffe.trust_domain"),
-        "lifecycle_state": envelope.lifecycle_state,
-        "delegation_depth": len(envelope.delegations),
-    }
+    spiffe_id = md.get("spiffe.id")
+    attrs: dict[str, Any] = {}
+    if spiffe_id:
+        attrs["spiffe_id"] = spiffe_id
+        if envelope.system_identifier != spiffe_id:
+            attrs["system_identifier"] = envelope.system_identifier
+    else:
+        attrs["system_identifier"] = envelope.system_identifier
+    td = md.get("spiffe.trust_domain")
+    if td:
+        attrs["trust_domain"] = td
+    if envelope.lifecycle_state and envelope.lifecycle_state != "active":
+        attrs["lifecycle_state"] = envelope.lifecycle_state
+    if envelope.delegations:
+        attrs["delegation_depth"] = len(envelope.delegations)
+    return attrs
+
+
+def _envelope_full_attrs(envelope: IdentityEnvelope) -> dict[str, Any]:
+    """Headline attrs PLUS runtime instance, owner, provenance, SVID expiry.
+
+    These are the attributes that make the 8-property envelope visually
+    demonstrable in a trace pane. Used on issue / delegate spans where the
+    question being answered is "which execution acted, who produced it,
+    who owns it, until when".
+    """
+    attrs = _spiffe_attrs(envelope)
+    ri = envelope.runtime_instance
+    if ri is not None:
+        if ri.instance_id:
+            attrs["instance_id"] = ri.instance_id
+        if ri.deployment_id:
+            attrs["deployment_id"] = ri.deployment_id
+        if ri.environment and ri.environment != "dev":
+            attrs["environment"] = ri.environment
+        if ri.region and ri.region != "local":
+            attrs["region"] = ri.region
+    ob = envelope.owner_binding
+    if ob is not None and ob.owner_id:
+        attrs["owner_id"] = ob.owner_id
+    prov = envelope.provenance
+    if prov is not None:
+        if prov.code_hash:
+            attrs["code_hash"] = prov.code_hash
+        if prov.policy_bundle_hash:
+            attrs["policy_bundle_hash"] = prov.policy_bundle_hash
+        if prov.model_hash:
+            attrs["model_hash"] = prov.model_hash
+        if prov.config_hash:
+            attrs["config_hash"] = prov.config_hash
+    if envelope.attestation_chain:
+        # Cap at 4 so the metadata pane doesn't explode for long chains.
+        chain = list(envelope.attestation_chain)
+        attrs["attestation_chain"] = chain[:4] + (
+            ["…"] if len(chain) > 4 else []
+        )
+    md = envelope.metadata or {}
+    svid_exp = md.get("spiffe.svid_exp")
+    if svid_exp:
+        # int unix-seconds → ISO so the UI doesn't show a raw timestamp.
+        from datetime import datetime, timezone
+
+        try:
+            attrs["svid_exp"] = (
+                datetime.fromtimestamp(int(svid_exp), tz=timezone.utc).isoformat()
+            )
+        except (TypeError, ValueError):
+            attrs["svid_exp"] = str(svid_exp)
+    kid = md.get("spiffe.kid")
+    if kid:
+        attrs["kid"] = kid
+    return attrs
 
 
 class TracedIdentity:
@@ -99,12 +181,10 @@ class TracedIdentity:
             },
         ) as span:
             envelope = self._identity.issue_envelope(context)
-            attrs = _spiffe_attrs(envelope)
+            attrs = _envelope_full_attrs(envelope)
             span.update(**attrs)
             span.set("audit_ref", envelope.audit_ref)
-            span.set_output(
-                {**attrs, "audit_ref": envelope.audit_ref}
-            )
+            span.set_output({**attrs, "audit_ref": envelope.audit_ref})
             return envelope
 
     def delegate(
@@ -135,12 +215,18 @@ class TracedIdentity:
                 caveats,
                 expires_at=expires_at,
             )
-            attrs = _spiffe_attrs(child)
+            attrs = _envelope_full_attrs(child)
+            # Also surface the redacted caveats so the delegation rationale
+            # ("why was this hop allowed?") is visible in the trace.
+            caveat_keys = [
+                k for k in caveats.keys()
+                if "key" not in k.lower() and "secret" not in k.lower()
+            ]
+            if caveat_keys:
+                attrs["caveat_keys"] = caveat_keys
             span.update(**attrs)
             span.set("audit_ref", child.audit_ref)
-            span.set_output(
-                {**attrs, "audit_ref": child.audit_ref}
-            )
+            span.set_output({**attrs, "audit_ref": child.audit_ref})
             return child
 
     def revoke(self, system_identifier: str, reason: str) -> None:
@@ -229,19 +315,34 @@ class TracedIdentity:
         args: tuple[Any, ...],
         kwargs: dict[str, Any],
     ) -> dict[str, Any]:
-        attrs = {
+        attrs: dict[str, Any] = {
             "action_type": action_type,
             "required_scope": required_scope,
             **_spiffe_attrs(envelope),
         }
+        # Surface the owner on every material action so accountability is
+        # visible in the trace without clicking into the issue span.
+        ob = envelope.owner_binding
+        if ob is not None and ob.owner_id:
+            attrs["owner_id"] = ob.owner_id
         with self._tracer.span(
             "asid.material_action",
             kind="asid.material_action",
             attributes=attrs,
         ) as span:
-            # Capture inputs only if the tracer was explicitly opted in.
+            # Compute input hash up-front so it's on the span even if the
+            # downstream fn raises before the facade gets to record it.
+            from autonomous_identity.core.hashing import hash_canonical  # noqa: PLC0415
+
+            try:
+                input_hash = hash_canonical({"args": list(args), "kwargs": kwargs})
+                span.set("input_hash", input_hash)
+            except Exception:  # noqa: BLE001
+                pass
+
             if getattr(self._tracer, "capture_io", False):
                 span.set("input", {"args": list(args), "kwargs": kwargs})
+
             proof = self._identity.run_material_action(
                 envelope,
                 action_type=action_type,
@@ -250,12 +351,24 @@ class TracedIdentity:
                 args=args,
                 kwargs=kwargs,
             )
+            # Output hash is what the audit log records. Replay it on the span
+            # so a verifier can cross-check the trace against the audit row.
+            try:
+                output_hash = hash_canonical(proof["result"])
+                span.set("output_hash", output_hash)
+            except Exception:  # noqa: BLE001
+                pass
+
             span.set("audit_ref", proof["audit_ref"])
+            if proof.get("verified_at"):
+                span.set("verified_at", proof["verified_at"])
             span.set_output(
                 {
                     "audit_ref": proof["audit_ref"],
                     "system_identifier": proof["system_identifier"],
                     "lifecycle_state": proof["lifecycle_state"],
+                    "verified_at": proof.get("verified_at"),
+                    "output_hash": span.attributes.get("output_hash"),
                 }
             )
             return proof
