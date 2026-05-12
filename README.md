@@ -25,7 +25,7 @@ current scope grants, and a signed delegation chain rooted in a human
 principal.
 
 The envelope must demonstrate eight properties for the identity to be
-governable. Paraphrased from [`primary-idea.md`](primary-idea.md):
+governable:
 
 1. **Persistent** — stable across sessions, restarts, and execution environments.
 2. **Addressable** — independently referable as a subject (`agent://...`, `spiffe://...`).
