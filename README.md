@@ -25,7 +25,7 @@ current scope grants, and a signed delegation chain rooted in a human
 principal.
 
 The envelope must demonstrate eight properties for the identity to be
-governable. Paraphrased from [`primary-idea.md`](primary-idea.md):
+governable:
 
 1. **Persistent** — stable across sessions, restarts, and execution environments.
 2. **Addressable** — independently referable as a subject (`agent://...`, `spiffe://...`).
@@ -147,10 +147,6 @@ in-toto/SLSA provenance binding, hardware attestation, threshold signatures.
   node under its envelope without boilerplate; `issue_and_delegate_tree`
   builds a multi-agent delegation tree at invoke time from a JSON spec
   (planner output, request payload, database row).
-- **Langflow** — `IdentityAgent` custom component (drop-in replacement for
-  the stock `AgentComponent`) that records user→agent and agent→agent
-  delegations. See `/Users/mansurah/GitHub/langflow/custom_components/`
-  for the component and wiring guide.
 - **A2A (Agent2Agent)** — sample server + executor that read the envelope
   off `metadata['autonomous_identity.envelope_json']` on each
   `SendMessageRequest`. Single-trust-domain version in
