@@ -112,10 +112,6 @@ in-toto/SLSA provenance binding, hardware attestation, threshold signatures.
   node under its envelope without boilerplate; `issue_and_delegate_tree`
   builds a multi-agent delegation tree at invoke time from a JSON spec
   (planner output, request payload, database row).
-- **Langflow** — `IdentityAgent` custom component (drop-in replacement for
-  the stock `AgentComponent`) that records user→agent and agent→agent
-  delegations. See `/Users/mansurah/GitHub/langflow/custom_components/`
-  for the component and wiring guide.
 - **A2A (Agent2Agent)** — sample server + executor that read the envelope
   off `metadata['autonomous_identity.envelope_json']` on each
   `SendMessageRequest`. Single-trust-domain version in
