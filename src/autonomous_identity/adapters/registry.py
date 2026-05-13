@@ -32,7 +32,12 @@ def list_adapters() -> list[str]:
 
 
 def _install_default_adapters() -> None:
-    if "merkle_chain" in _registry and "spiffe" in _registry:
+    if (
+        "merkle_chain" in _registry
+        and "spiffe" in _registry
+        and "merkle_dag" in _registry
+        and "composite" in _registry
+    ):
         return
 
     def _merkle_factory(deps: dict[str, Any]) -> Any:
@@ -58,5 +63,27 @@ def _install_default_adapters() -> None:
             default_audience=config.get("default_audience"),
         )
 
+    def _merkle_dag_factory(deps: dict[str, Any]) -> Any:
+        from autonomous_identity.adapters.merkle_dag import MerkleDagIdentityAdapter
+
+        signer = deps["signer"]
+        audit_store = deps["audit_store"]
+        return MerkleDagIdentityAdapter(signer, audit_store=audit_store)
+
+    def _composite_factory(deps: dict[str, Any]) -> Any:
+        from autonomous_identity.adapters.composite import CompositeIdentityAdapter
+
+        signer = deps["signer"]
+        audit_store = deps["audit_store"]
+        config = deps.get("adapter_config") or {}
+        return CompositeIdentityAdapter(
+            signer,
+            audit_store=audit_store,
+            svid_ttl=config.get("svid_ttl"),
+            default_audience=config.get("default_audience"),
+        )
+
     register_adapter("merkle_chain", _merkle_factory)
     register_adapter("spiffe", _spiffe_factory)
+    register_adapter("merkle_dag", _merkle_dag_factory)
+    register_adapter("composite", _composite_factory)

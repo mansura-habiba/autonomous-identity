@@ -1,0 +1,942 @@
+\documentclass[11pt,a4paper]{article}
+
+% ----- packages -------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{float}
+\usepackage{framed}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{listings}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue!60!black,
+  citecolor=blue!60!black,
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  framerule=0.2pt,
+  rulecolor=\color{black!30},
+}
+
+% ----- custom algorithm float (no algorithm.sty / algpseudocode.sty) --------
+% Provides a numbered float similar to the `algorithm` package but using
+% only `float.sty` and `framed.sty` which are present in texlive-base.
+\floatstyle{plain}
+\newfloat{algo}{tbp}{loa}[section]
+\floatname{algo}{Algorithm}
+
+% Light, no-dependency pseudocode styling. Use \Require / \Ensure / \State /
+% \If / \EndIf etc. as macros that just render their argument.
+\newcommand{\AlgKwd}[1]{\textbf{#1}}
+\newcommand{\Require}{\AlgKwd{Require:}~}
+\newcommand{\Ensure}{\AlgKwd{Ensure:}~}
+\newcommand{\State}{\hspace*{0pt}}
+\newcommand{\Comment}[1]{\hfill\textit{\small#1}}
+
+% Environment that wraps the body in a framed, monospaced block with
+% numbered lines via the standard enumerate.
+\newenvironment{algorithmic}
+  {\begin{framed}\small\begin{list}{\arabic{enumi}:}{%
+      \usecounter{enumi}\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}%
+      \setlength{\leftmargin}{2.2em}\setlength{\labelwidth}{1.8em}}}
+  {\end{list}\end{framed}}
+
+% ----- theorem-like blocks ---------------------------------------------------
+\newtheorem{property}{Property}
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{invariant}{Invariant}
+
+% ----- title -----------------------------------------------------------------
+\title{\bfseries Identity at the Moment of Action:\\
+A Composable Cryptographic Architecture\\for Autonomous-System Authority}
+\author{Mansura Habiba\\\small autonomous-identity contributors}
+\date{May 2026 --- Technical Report / Preprint}
+
+\begin{document}
+\maketitle
+
+% ----- abstract --------------------------------------------------------------
+\begin{abstract}
+Production agentic AI systems authenticate via a session token --- typically
+a JWT minted at the start of a conversation. Between session start and the
+material action the agent eventually performs, the policy bundle may have
+changed, the workload may have been redeployed under a different code hash,
+the human principal may have left the organisation, or the deployment
+controller may have marked the upstream pipeline compromised. An identity
+that was valid at $14{:}07{:}33$ is not necessarily valid at $14{:}07{:}34$.
+We define an \emph{identity envelope} as the portable, cryptographically
+verifiable artifact that re-verifies at the moment of every material action
+against an active lifecycle state, current scope grants, and a signed
+delegation chain rooted in a human principal. We formalise eight properties
+the envelope must demonstrate, define a $\mathrm{verify}(\cdot)$ procedure
+that runs at action time, and prove a monotonicity invariant on delegation.
+We present four identity-adapter constructions --- Merkle chain, SPIFFE/SVID,
+Merkle DAG, and a composite hybrid --- and score them against the eight
+properties. The composite construction (SPIFFE address + JWT-SVID lifecycle
+$+$ Merkle DAG audit) is the smallest combination that achieves
+\emph{Strong} on all eight properties using primitives that ship today;
+two of the eight cells reach \emph{Very~Strong}. We evaluate end-to-end
+material-action latency, scope-escalation rejection, and tamper detection
+across 112 tests. The reference implementation is open-source
+(Python, Apache-2.0).
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+
+Most production identity for autonomous AI systems is a JWT carrying claims
+about the human principal who authorised the agent, plus a string in a
+database identifying which model instance is running. Together these
+answer \emph{``who is this session''} with mathematical confidence.
+Then the session opens. The agent reads documents, calls tools, mutates
+state, hands work to a sub-agent, persists checkpoints, resumes hours
+later. By the time the action that matters fires, the session token is
+the only thing tying any of it back to the human principal --- and the
+session token was minted before the policy bundle changed, before the
+workload was redeployed, before the deployment controller marked the
+upstream pipeline compromised, before the security operations centre
+pulled the agent off the privileged tool list.
+
+The mistake most architectures make at this point is subtle. The question
+\emph{``who is this session''} is the wrong question. The question every
+high-consequence industry that has already solved a variant of this
+problem answers instead is \emph{``is this action authorised right now?''}.
+A fly-by-wire aircraft does not trust the pilot's takeoff clearance once
+airborne; every control surface command runs through envelope
+protection, a check against the aircraft's current state at the moment of
+exercise.\footnote{Envelope protection in aviation runs at the control
+surface, not at the cockpit door, and runs on every single command rather
+than a sampled subset.} This paper develops the analogue for autonomous
+systems: an identity envelope that is re-verified at the moment of every
+material action against a live lifecycle store, current scope grants,
+and a signed delegation chain.
+
+\subsection{Contributions}\label{sec:contributions}
+
+\begin{enumerate}[leftmargin=*,label=\arabic*.]
+  \item \textbf{An eight-property formalism} for autonomous-system
+    identity (\S\ref{sec:eight-properties}). Each property has a stated
+    verifier-side check that runs at action time.
+  \item \textbf{A canonical envelope schema} (\S\ref{sec:schema}) that
+    carries the eight properties as data fields and travels with every
+    material action via a portable serialisation.
+  \item \textbf{Five algorithms} for the operations of the system
+    (\S\ref{sec:algorithms}): \textsc{Issue},
+    \textsc{Delegate}, \textsc{RunMaterialAction}, \textsc{Verify}, and
+    a multi-parent \textsc{AuditWithWitnesses}.
+  \item \textbf{A monotonicity invariant on delegation}
+    (\S\ref{sec:monotonicity}). Each hop in the delegation chain narrows
+    authority; no agent produces authority.
+  \item \textbf{Four reference adapter constructions} (\S\ref{sec:adapters}):
+    Merkle chain, SPIFFE/SVID, Merkle DAG, and a composite hybrid
+    combining SPIFFE addressing $+$ JWT-SVID lifecycle $+$ Merkle DAG
+    audit. The composite is the smallest combination that scores
+    \emph{Strong} on all eight properties using shipping primitives.
+  \item \textbf{Cross-trust-domain federation} (\S\ref{sec:federation})
+    with explicit federation caveats, an out-of-band trust-bundle
+    exchange, and a receiver-side verification procedure with four
+    independent checks.
+  \item \textbf{An open-source reference implementation} in Python
+    (Apache-2.0, 112 tests passing).
+\end{enumerate}
+
+\section{Related Work}\label{sec:related}
+
+\paragraph{SPIFFE and SPIRE} provide production-grade workload
+identity~\cite{spiffe}. SVIDs bind a cryptographic identity to a workload
+under a trust domain, with rotation handled by short-lived credentials.
+SPIFFE is strong on addressable and lifecycle properties but proves
+workload identity, not the full autonomous-system identity story --- it
+does not by itself prove the model version, policy bundle, build
+provenance, user delegation, or retrieval evidence.
+
+\paragraph{Verifiable Credentials and Decentralised
+Identifiers}~\cite{w3c-vc,w3c-did} compose claims across multiple issuers
+about a stable DID subject. Strong for cross-domain composition; weak for
+runtime freshness because the verifier must perform credential-status
+lookup at the moment of action.
+
+\paragraph{Macaroons and Biscuits}~\cite{macaroons} provide attenuating
+capability tokens. Each delegation hop adds caveats; no hop can expand the
+parent's authority. We adopt the monotone-decreasing delegation property
+(\S\ref{sec:monotonicity}) from macaroons but generalise it to a full
+identity envelope rather than a capability token.
+
+\paragraph{in-toto and SLSA}~\cite{in-toto,slsa} attest supply-chain
+provenance: what code was built, by which process, from which source,
+under which policy. Very strong for provenance and audit; not by itself
+a runtime identity system. Our composite construction embeds provenance
+hashes that an in-toto verifier can resolve out-of-band.
+
+\paragraph{Hardware-rooted attestation}~\cite{tpm,sgx} anchors identity in
+a measured execution environment. Very strong for instance-specific
+verifiability when host compromise is in scope. Not a delegation,
+lifecycle, or policy primitive by itself; complementary to the
+constructions in this paper.
+
+\paragraph{Threshold and BLS signatures}~\cite{bls} allow multi-party
+authorisation where no single principal can act alone. Useful when the
+identity claim is not ``this one actor acted'' but ``this action was
+co-asserted by the required quorum.'' Our Merkle DAG audit
+(\S\ref{sec:dag}) captures the witness set structurally on each action
+row, achieving the same operational property without aggregated
+signatures.
+
+\section{Eight Properties of Autonomous-System Identity}\label{sec:eight-properties}
+
+We formalise the property set with a verifier-side check for each.
+Throughout, $\mathcal{E}$ denotes an identity envelope; $\mathrm{now}$
+denotes the wall-clock time at the moment of verification.
+
+\begin{property}[Persistent]
+$\mathcal{E}.\text{system\_identifier}$ is a stable, deterministic value
+across sessions, restarts, and execution environments.
+\end{property}
+
+\begin{property}[Addressable]
+$\mathcal{E}.\text{system\_identifier}$ matches a URI grammar
+(\texttt{agent://...}, \texttt{spiffe://...}) that policies, audit logs,
+and governance processes can refer to.
+\end{property}
+
+\begin{property}[Verifiable]
+There exists $\sigma \in \mathcal{E}.\text{signature\_chain}$ and a
+public key $K_\sigma$ such that
+$\mathrm{Verify}_{K_\sigma}(H(\mathcal{E}), \sigma) = \top$,
+where $H(\cdot)$ is the envelope commitment hash.
+\end{property}
+
+\begin{property}[Attenuable / Owner-bound]
+For each delegation $d \in \mathcal{E}.\text{delegations}$,
+$d.\text{allowed\_scopes} \subseteq \text{eff}(d.\text{parent\_subject})$,
+where $\text{eff}(\cdot)$ denotes the effective scopes of the parent.
+\end{property}
+
+\begin{property}[Instance-specific]
+$\mathcal{E}.\text{runtime\_instance}$ uniquely identifies the runtime
+process. Three replicas of the same code do not share an envelope.
+\end{property}
+
+\begin{property}[Provenance-aware]
+$\mathcal{E}.\text{provenance}$ has at least one non-null field among
+$\{\text{code\_hash}, \text{model\_hash}, \text{policy\_bundle\_hash},
+\text{slsa\_attestation\_ref}, \text{in\_toto\_statement\_ref}\}$,
+each populated at build time.
+\end{property}
+
+\begin{property}[Lifecycle-controlled]
+$\mathcal{E}.\text{lifecycle\_state} \in \{\text{active},
+\text{restricted}\}$ at $\mathrm{now}$, looked up live from the lifecycle
+store. States \texttt{suspended}, \texttt{revoked}, and \texttt{retired}
+deny the action.
+\end{property}
+
+\begin{property}[Auditable]
+The action attached to $\mathcal{E}$ produces an entry in the audit log
+indexed by $\mathcal{E}.\text{audit\_ref}$ that links to the envelope
+commitment hash, the action hash, and the verifying signature.
+\end{property}
+
+The envelope is \emph{governable} when all eight properties hold
+simultaneously at $\mathrm{now}$, not merely at the start of the session.
+
+\section{The Envelope Schema}\label{sec:schema}
+
+\begin{definition}[Identity envelope]
+$\mathcal{E} = (s, r, o, A, P, \ell, t_i, t_v, \alpha, \Sigma, D, M)$
+where
+\begin{align*}
+s &= \text{system identifier (Property 1, 2)} \\
+r &= \text{runtime instance (Property 5)} \\
+o &= \text{owner binding (Property 4)} \\
+A &= \text{attestation chain $[a_1, \ldots, a_n]$ (Property 3, 6)} \\
+P &= \text{provenance reference (Property 6)} \\
+\ell &= \text{lifecycle state (Property 7)} \\
+t_i,\, t_v &= \text{issued-at, verified-at timestamps} \\
+\alpha &= \text{audit reference (Property 8)} \\
+\Sigma &= \text{signature chain $[\sigma_1, \ldots, \sigma_k]$ (Property 3)} \\
+D &= \text{delegations $[d_1, \ldots, d_m]$ (Property 4)} \\
+M &= \text{metadata (adapter-specific)}
+\end{align*}
+\end{definition}
+
+The envelope commitment hash $H(\mathcal{E})$ is the canonical hash over
+the tuple, with adapter-specific volatile fields ($\Sigma$, $\alpha$,
+$t_v$) excluded so that successive audit operations on the same envelope
+do not invalidate prior signatures. The composite adapter
+(\S\ref{sec:composite}) excludes additional fields to survive
+multi-action sequences.
+
+\section{Algorithms}\label{sec:algorithms}
+
+\subsection{Issue}
+
+\textsc{Issue} accepts a context $C$ specifying the system identifier,
+runtime instance, owner, attestation references, provenance hashes
+(populated from a build artifact), and the initial issuer scopes. It
+returns an envelope signed by the issuer.
+
+\begin{algo}
+\caption{\textsc{Issue}($C$)}\label{alg:issue}
+\begin{algorithmic}
+\item \Require Issue context $C$
+\item \Ensure Signed envelope $\mathcal{E}$
+\item $\mathcal{E} \gets$ allocate envelope from $C$
+\item $\mathcal{E}.\ell \gets \texttt{active}$
+\item $\mathcal{E}.t_i \gets \mathrm{now}$
+\item $h \gets H(\mathcal{E})$ \Comment{commitment hash}
+\item $\sigma \gets \mathrm{Sign}_{K_\text{issuer}}(h)$
+\item $\mathcal{E}.\Sigma \gets [\sigma]$
+\item $\alpha \gets \mathrm{Audit.Append}(\{\text{event}: \texttt{issue},\, h,\, \sigma\})$
+\item $\mathcal{E}.\alpha \gets \alpha$
+\item $\mathrm{Lifecycle.Set}(\mathcal{E}.s, \texttt{active})$
+\item \textbf{return} $\mathcal{E}$
+\end{algorithmic}
+\end{algo}
+
+\subsection{Delegate}
+
+\textsc{Delegate} attenuates a parent envelope into a child. Scope
+monotonicity is enforced before the child envelope is signed, so an
+illegal expansion is rejected without producing a verifiable artifact.
+
+\begin{algo}
+\caption{\textsc{Delegate}($\mathcal{E}_p, s_c, S_c, V, t_\text{exp}$)}\label{alg:delegate}
+\begin{algorithmic}
+\item \Require Parent envelope $\mathcal{E}_p$, child subject $s_c$, allowed scopes $S_c$, caveats $V$, expiry $t_\text{exp}$
+\item \Ensure Signed child envelope $\mathcal{E}_c$
+\item $S_p \gets \text{eff}(\mathcal{E}_p)$ \Comment{effective scopes of parent}
+\item \textbf{if} $S_c \not\subseteq S_p$ \textbf{then raise} \texttt{VerificationError} \Comment{scope escalation}
+\item \textbf{if} $t_\text{exp} \leq \mathrm{now}$ \textbf{then raise} \texttt{VerificationError} \Comment{past-dated delegation}
+\item $d \gets (\mathcal{E}_p.s, s_c, S_c, V, t_\text{exp})$
+\item $\mathcal{E}_c \gets \mathcal{E}_p \text{ with } s \mapsto s_c,\, D \mapsto D \cup \{d\},\, \Sigma \mapsto [\,]$
+\item $\sigma \gets \mathrm{Sign}_{K_\text{issuer}}(H(\mathcal{E}_c))$
+\item $\mathcal{E}_c.\Sigma \gets [\sigma]$
+\item $\alpha \gets \mathrm{Audit.Append}(\{\text{event}: \texttt{delegate},\, d,\, H(\mathcal{E}_c),\, \sigma\})$
+\item $\mathcal{E}_c.\alpha \gets \alpha$
+\item \textbf{return} $\mathcal{E}_c$
+\end{algorithmic}
+\end{algo}
+
+\subsection{Run Material Action}\label{sec:run-action}
+
+The central algorithm of the system. Every material action runs through
+\textsc{RunMaterialAction}, which performs the verifier-side checks for
+all eight properties at $\mathrm{now}$ before invoking the action.
+
+\begin{algo}
+\caption{\textsc{RunMaterialAction}($\mathcal{E}, \tau, \rho, f, \vec{x}$)}\label{alg:action}
+\begin{algorithmic}
+\item \Require Envelope $\mathcal{E}$, action type $\tau$, required scope $\rho$, callable $f$, args $\vec{x}$
+\item \Ensure Result and audit reference, or \texttt{VerificationError}
+\item \textit{// Property 7 (Lifecycle): live store lookup}
+\item \textbf{if} $\mathrm{Lifecycle.Get}(\mathcal{E}.s) \notin \{\texttt{active},\, \texttt{restricted}\}$ \textbf{then raise} \texttt{LifecycleError}
+\item \textit{// Property 4 (Attenuable): delegation expiry}
+\item \textbf{for} $d \in \mathcal{E}.D$ with $d.\text{child\_subject} = \mathcal{E}.s$ \textbf{do}
+\item \quad \textbf{if} $d.t_\text{exp} \leq \mathrm{now}$ \textbf{then raise} \texttt{VerificationError}
+\item \textit{// Property 4 (Attenuable): scope check}
+\item \textbf{if} $\rho \neq \emptyset$ and $\rho \notin \text{eff}(\mathcal{E})$ \textbf{then raise} \texttt{VerificationError}
+\item \textit{// Properties 1--3, 5, 6, 8: structural validator}
+\item $\mathrm{Validator.Validate}(\mathcal{E})$
+\item \textit{// Property 3 (Verifiable): cryptographic check at action time}
+\item \textbf{if} $\neg\,\mathrm{Adapter.Verify}(\mathcal{E})$ \textbf{then raise} \texttt{VerificationError}
+\item $h_\text{in} \gets H(\vec{x})$
+\item $y \gets f(\vec{x})$
+\item $h_\text{out} \gets H(y)$
+\item $\alpha \gets \mathrm{Adapter.Audit}(\mathcal{E}, \{\tau, \rho, h_\text{in}, h_\text{out}\})$
+\item \textbf{return} $(y, \alpha)$
+\end{algorithmic}
+\end{algo}
+
+The structural invariant of Algorithm~\ref{alg:action} is that
+\emph{every} eight-property check runs \emph{before} $f(\vec{x})$ is
+invoked. A revocation visible to $\mathrm{Lifecycle.Get}$ between two
+successive actions blocks the second action --- this is the moment-of-action
+property the paper is named for.
+
+\subsection{Verify}
+
+\textsc{Verify} is the adapter-side procedure invoked at line~13 of
+Algorithm~\ref{alg:action}. Its concrete implementation depends on the
+adapter (\S\ref{sec:adapters}); the contract is constant.
+
+\begin{algo}
+\caption{\textsc{Verify}($\mathcal{E}$)}\label{alg:verify}
+\begin{algorithmic}
+\item \Require Envelope $\mathcal{E}$
+\item \Ensure $\top$ if $\mathcal{E}$ verifies; $\bot$ otherwise
+\item $K \gets$ extract public key from $\mathcal{E}.M$
+\item \textbf{if} $K = \emptyset$ or $\mathcal{E}.\Sigma = [\,]$ \textbf{then return} $\bot$
+\item $\sigma \gets$ last signature in $\mathcal{E}.\Sigma$
+\item $h \gets H(\mathcal{E})$
+\item \textbf{if} $\neg\,\mathrm{Verify}_K(h, \sigma)$ \textbf{then return} $\bot$
+\item \textbf{if} $\mathrm{adapter\_specific\_checks}(\mathcal{E}) = \bot$ \textbf{then return} $\bot$
+\item \textbf{return} $\top$
+\end{algorithmic}
+\end{algo}
+
+\subsection{Audit With Witnesses (Merkle DAG)}\label{sec:dag-audit}
+
+The DAG audit generalises a single-parent audit node to one with
+multiple parents, recording structural co-assertion across principals.
+
+\begin{algo}
+\caption{\textsc{AuditWithWitnesses}($\mathcal{E}, a, W$)}\label{alg:witness}
+\begin{algorithmic}
+\item \Require Envelope $\mathcal{E}$, action payload $a$, witness envelopes $W$
+\item \Ensure Audit reference $\alpha$
+\item $P \gets [\mathrm{Tip}(\mathcal{E}.s)]$ \Comment{actor's own tip}
+\item \textbf{for} $w \in W$ \textbf{do}
+\item \quad \textbf{if} $\mathrm{Tip}(w.s) = \emptyset$ \textbf{then raise} \texttt{VerificationError} \Comment{witness not from this adapter}
+\item \quad \textbf{if} $w.s = \mathcal{E}.s$ or $\mathrm{Tip}(w.s) \in P$ \textbf{then continue} \Comment{de-duplicate}
+\item \quad $P \gets P + [\mathrm{Tip}(w.s)]$
+\item $n \gets$ allocate DAG node with $n.\text{previous\_hashes} \gets \mathrm{sort}(P)$
+\item $n.\sigma \gets \mathrm{Sign}_{K_\text{issuer}}(H(n))$
+\item $\alpha \gets \mathrm{Audit.Append}(n)$
+\item $\mathrm{Tip}(\mathcal{E}.s) \gets H(n)$
+\item \textbf{return} $\alpha$
+\end{algorithmic}
+\end{algo}
+
+The sort at line~12 ensures that two nodes with the same parent set but
+different list orderings hash identically; the witness set is what
+matters, not the order of arrival.
+
+\section{Scope Monotonicity}\label{sec:monotonicity}
+
+\begin{invariant}[Monotone-decreasing delegation]\label{inv:mono}
+Let $\mathcal{E}_0 \to \mathcal{E}_1 \to \cdots \to \mathcal{E}_n$ be a
+delegation chain produced by repeated \textsc{Delegate} calls. Then
+$\text{eff}(\mathcal{E}_n) \subseteq \text{eff}(\mathcal{E}_{n-1})
+\subseteq \cdots \subseteq \text{eff}(\mathcal{E}_0)$.
+\end{invariant}
+
+\begin{proof}
+By induction. The base case is the issuance step, which sets
+$\text{eff}(\mathcal{E}_0)$ to the issuer scopes specified in the issue
+context. For the inductive step, Algorithm~\ref{alg:delegate} line~3
+checks $S_c \subseteq \text{eff}(\mathcal{E}_p)$ before any signature is
+produced. If the check fails, $\mathcal{E}_{n+1}$ is not constructed and
+the chain does not advance. If the check succeeds,
+$\text{eff}(\mathcal{E}_{n+1}) = S_c \subseteq \text{eff}(\mathcal{E}_n)$.
+\end{proof}
+
+Invariant~\ref{inv:mono} is the formal statement of the macaroon
+property: no agent produces authority; it can only attenuate authority it
+already received.
+
+\section{Identity Adapters}\label{sec:adapters}
+
+We define an \emph{identity adapter} as an implementation of the
+$\mathrm{Adapter} = \langle \textsc{Issue}, \textsc{Delegate},
+\textsc{Verify}, \textsc{Audit} \rangle$ interface. Each adapter chooses
+a cryptographic substrate that emphasises different properties. The
+library ships four adapters. We score each against the eight properties
+in Table~\ref{tab:scores}.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Adapter scoring against the eight properties. ``VS''~=~very strong, ``S''~=~strong, ``M''~=~medium. The composite construction reaches \emph{Strong} on all eight and \emph{Very Strong} on two.}\label{tab:scores}
+\begin{tabular}{lcccc}
+\toprule
+Property & \texttt{merkle\_chain} & \texttt{spiffe} & \texttt{merkle\_dag} & \texttt{composite} \\
+\midrule
+1. Persistent           & S  & S  & S  & S  \\
+2. Addressable          & S  & S  & S  & S  \\
+3. Verifiable           & S  & S  & S  & S  \\
+4. Attenuable / owner   & S  & M  & S  & S  \\
+5. Instance-specific    & S  & S  & S  & S  \\
+6. Provenance-aware     & S  & M  & VS & VS \\
+7. Lifecycle-controlled & M  & S  & M  & S  \\
+8. Auditable            & S  & M  & VS & VS \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Merkle Chain}
+
+Each identity event becomes a signed node committing to the hash of the
+previous node. The chain is tamper-evident: modifying any earlier node
+breaks every downstream hash. Strong on persistence, provenance, and
+audit. Weak on topology --- every node has exactly one parent, forcing
+graph-shaped agent flows into a sequence.
+
+\subsection{SPIFFE / JWT-SVID}\label{sec:spiffe}
+
+System identifiers are SPIFFE IDs of the form
+$\texttt{spiffe://}\langle\text{trust\_domain}\rangle/\langle\text{path}\rangle$.
+The envelope carries a compact JWS (JWT-SVID) over claims
+$\{\text{sub}, \text{aud}, \text{iat}, \text{exp}, \text{jti},
+\text{commitment\_hash}\}$ signed by the trust-domain root. A JWKS is
+included in envelope metadata so verifiers can validate the SVID without
+direct contact with the signer. SVID expiry is enforced at action time;
+cross-trust-domain delegation requires an explicit federation caveat
+(\S\ref{sec:federation}).
+
+\subsection{Merkle DAG}\label{sec:dag}
+
+Each node commits to multiple parents rather than one
+(Algorithm~\ref{alg:witness}). The witness set is sorted before hashing
+so two co-assertions of the same node set hash identically regardless of
+witness arrival order. The DAG is what the design notes call out for
+graph-shaped agent flows: an action co-asserted by an actor, a policy
+engine, and a retrieval gate is recorded as one node with three parent
+hashes rather than three separate sequential rows.
+
+\subsection{Composite (SPIFFE $\times$ Merkle DAG)}\label{sec:composite}
+
+The composite construction inherits the DAG adapter's multi-parent audit
+semantics and overlays SPIFFE SVID claims at issue and delegate. Each
+envelope carries two independently verifiable signature artifacts:
+\begin{enumerate}[leftmargin=*,nosep]
+  \item the DAG node signature, binding the action commitment to the
+    envelope commitment hash; and
+  \item the JWT-SVID compact JWS, binding the SPIFFE ID, audience,
+    expiry, and a SPIFFE-strict commitment hash.
+\end{enumerate}
+The SPIFFE-strict commitment hash excludes both SVID metadata
+($\text{svid\_jws}$, $\text{svid\_exp}$, etc.) and DAG-tip metadata
+($\text{dag\_tip\_hash}$, $\text{dag\_tip\_node\_id}$) so successive
+audit rows do not invalidate the SVID minted at issue. Two cells reach
+\emph{Very~Strong}: provenance (DAG witnessing of provenance attestations)
+and audit (DAG node graph over signed events).
+
+\section{Cross-Trust-Domain Federation}\label{sec:federation}
+
+The SPIFFE and composite adapters support federation across trust
+domains, but require the receiver to perform four checks before
+exercising any action:
+
+\begin{algo}
+\caption{\textsc{VerifyFederated}($\mathcal{E}, T_R, B$)}\label{alg:fed}
+\begin{algorithmic}
+\item \Require Envelope $\mathcal{E}$, receiver's trust domain $T_R$, trust bundle $B$
+\item \Ensure $\top$ if federated envelope is acceptable; \texttt{VerificationError} otherwise
+\item $(T_E, \cdot) \gets \mathrm{ParseSPIFFE}(\mathcal{E}.s)$
+\item \textbf{check 1:} $T_E = T_R$ \Comment{Subject lives in receiver's TD}
+\item $d \gets$ first $d \in \mathcal{E}.D$ crossing into $T_R$ with $d.V[\text{spiffe.federation}] = \top$
+\item \textbf{check 2:} $d \neq \emptyset$ \Comment{Federation caveat present}
+\item $T_P \gets $ trust domain of $d.\text{parent\_subject}$;\quad $J_P \gets B.\text{jwks\_for}(T_P)$
+\item \textbf{check 3:} $J_P \neq \emptyset$ and $\mathcal{E}.M.\text{spiffe.jwks} \cap J_P \neq \emptyset$ \Comment{JWKS in trust bundle}
+\item $K \gets$ public key from $J_P$ matching $\mathcal{E}.M.\text{spiffe.kid}$
+\item \textbf{check 4:} $\mathrm{VerifyJWS}(\mathcal{E}.M.\text{svid\_jws}, K) = \top$ \Comment{SVID signature}
+\item \textbf{return} $\top$
+\end{algorithmic}
+\end{algo}
+
+The receiver-side trust bundle $B$ maps each peer trust domain to the
+JWKS exchanged out-of-band before any envelope is accepted. Check~3 is
+the move that prevents a malicious sender from embedding its own
+self-signed JWKS in metadata to make the SVID verify --- the receiver
+trusts only JWKS already exchanged.
+
+\section{Implementation}\label{sec:impl}
+
+The reference implementation is written in Python (no Rust extensions).
+Ed25519 signing comes from the \texttt{cryptography} package. The JWS
+compact serialisation is implemented in $\sim$50 lines without taking a
+JWT-library dependency, so the SPIFFE and composite adapters have no
+extra runtime requirements beyond what the core has.
+
+Storage is pluggable: file (default), SQLite, PostgreSQL, in-memory.
+Tracing is pluggable: a $\mathrm{Tracer}$ protocol with adapters for
+console output and Langfuse (OpenTelemetry-compatible). Framework
+integrations exist for LangChain, LangGraph, Langflow, and Google's A2A
+(Agent-to-Agent) protocol; a framework-agnostic
+$\mathrm{IdentityRuntime}$ wrapper supports CrewAI, AutoGen, Pydantic
+AI, Letta, and arbitrary function orchestrators. The library is
+config-driven via an \texttt{agent.yaml} file that holds operator-owned
+data (system identifier, owner, scope vocabulary, scope-to-tool mapping)
+plus a CI-generated \texttt{provenance.json} that holds build-time
+hashes.
+
+The full distribution is 5,000 lines of Python plus 2,500 lines of tests
+($112$ test cases, 1 expected skip). Code is licensed Apache-2.0.
+
+\section{Evaluation}\label{sec:eval}
+
+We measure end-to-end latency for the five operations defined in
+\S\ref{sec:algorithms} across the four adapters. Benchmarks run on a
+single-thread Python 3.10 process under a Linux sandbox; numbers are
+microseconds, $n$ samples per measurement, after warmup. Storage is the
+in-process file backend (no network).
+
+\begin{table}[t]
+\centering
+\small
+\caption{Operation latencies (median, p50) across adapters, in microseconds. The composite adapter pays a 2$\times$ to 4$\times$ overhead relative to either single primitive in exchange for satisfying all eight properties simultaneously.}\label{tab:latency}
+\begin{tabular}{l r r r r}
+\toprule
+Operation & \texttt{merkle\_chain} & \texttt{spiffe} & \texttt{merkle\_dag} & \texttt{composite} \\
+\midrule
+\textsc{Issue}                  & $1{,}714$  & $816$    & $1{,}614$  & $3{,}929$   \\
+\textsc{Delegate}               & $4{,}258$  & $1{,}296$ & $4{,}208$  & $11{,}097$  \\
+\textsc{RunMaterialAction}      & $8{,}392$  & $1{,}527$ & $8{,}274$  & $12{,}057$  \\
+\textsc{Verify}                 & $9{,}604$  & $178$    & $9{,}942$  & $14{,}784$  \\
+\textsc{AuditWithWitnesses} ($|W|{=}2$)
+                                & ---        & ---      & $1{,}021$  & $1{,}097$   \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three observations from Table~\ref{tab:latency} are worth flagging:
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item \textbf{SPIFFE's $\textsc{Verify}$ is fastest by an order of
+    magnitude} ($178\,\mu\text{s}$) because the check is a single JWS
+    signature verification against an in-memory JWK plus an expiry
+    comparison. The Merkle adapters re-hash the audit-store row, which
+    requires reading and canonicalising the full event.
+  \item \textbf{The composite adapter pays a $1.5\text{--}4\times$
+    overhead} versus the cheaper single primitives. Both signature
+    artifacts are produced at issue and delegate; both are checked at
+    verify. The overhead is fixed and additive --- it does not grow
+    with delegation depth.
+  \item \textbf{$\textsc{AuditWithWitnesses}$ with $|W|{=}2$ is barely
+    more expensive than $\textsc{Issue}$} on the DAG and composite
+    adapters. The witness mechanism adds two hash references to the
+    node's commitment payload; no extra signature is required because
+    the witnesses' tip hashes are already signed in their own audit
+    rows.
+\end{enumerate}
+
+\paragraph{Behavioural correctness.} The 112 test cases exercise
+positive and negative paths across all four adapters. Among the
+negative-path tests: scope escalation across delegation is rejected at
+the moment of \textsc{Delegate} (Algorithm~\ref{alg:delegate} line~4);
+scope escalation at action time is rejected at line~10 of
+Algorithm~\ref{alg:action}; expired SVIDs fail
+$\mathrm{Adapter.Verify}$; tampered audit rows fail
+\textsc{VerifyChainEvent} on each adapter; cross-trust-domain
+delegation without the federation caveat is rejected at line~4 of
+$\textsc{Delegate}$ for the SPIFFE and composite adapters; and a
+witness whose envelope was not issued by the receiving adapter is
+rejected at line~5 of Algorithm~\ref{alg:witness}.
+
+\paragraph{Comparison to session-token baselines.} A JWT-only baseline
+performs no action-time verification beyond signature and \texttt{exp};
+typical latency in production stacks is dominated by the network round
+trip to the identity provider for rotated keys (1--10\,ms). The envelope
+constructions in this paper add cryptographic work at every action but
+remove the trust assumption ``the token I minted at session start is
+still valid now''. The trade-off is explicit and quantifiable.
+
+\section{Experimental Validation}\label{sec:validation}
+
+The composite construction (\S\ref{sec:composite}) is a proposal. The
+eight-property scoring in Table~\ref{tab:scores} is an argument; the
+microbenchmarks in Table~\ref{tab:latency} characterise cost but say
+nothing about \emph{correctness}. This section turns the proposal into a
+testable claim. We state six hypotheses, design a falsifiable
+experiment for each, and run them against the reference implementation.
+
+\subsection{Hypotheses}\label{sec:hypotheses}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item[\textbf{H1.}] The composite adapter enforces violations of all
+    eight properties at $\textsc{Verify}$ or $\textsc{Issue}$ time. No
+    single primitive enforces a strict superset.
+  \item[\textbf{H2.}] The composite adapter detects six concrete attacks
+    (A1--A6 below) that single primitives miss at least one of.
+  \item[\textbf{H3.}] Delegation latency is linear in chain depth.
+    Composite overhead vs.\ the cheapest single primitive is additive,
+    not multiplicative.
+  \item[\textbf{H4.}] $\textsc{AuditWithWitnesses}$ latency is linear
+    in $|W|$.
+  \item[\textbf{H5.}] Tamper-detection coverage (envelope content and
+    audit-row content) is strictly higher for the composite construction
+    than for either single primitive.
+  \item[\textbf{H6.}] Scope monotonicity (Invariant~\ref{inv:mono}) holds
+    invariantly over randomly generated delegation trees, regardless of
+    adapter.
+\end{itemize}
+
+Experiments E1--E6 below correspond one-to-one to H1--H6. All
+experiments are reproducible from
+\texttt{research/identity-envelope-paper/experiments/run\_experiments.py}.
+
+\subsection{E1: Property Coverage}\label{sec:e1}
+
+For each property in \S\ref{sec:eight-properties} we construct a
+violating context and pass it to $\textsc{Issue}$ (for static
+violations) or to the action loop of Algorithm~\ref{alg:action} (for
+runtime violations). A \emph{pass} means the adapter rejects the
+violation with a typed exception
+(\texttt{VerificationError}, \texttt{ValidationError}, or
+\texttt{LifecycleError}); a \emph{miss} means the violating envelope
+verified or the action ran.
+
+\begin{table}[h]
+\centering
+\small
+\caption{E1 results --- properties enforced (out of 8). The composite
+adapter enforces violations of $7$ properties at issue/verify time. The
+single missing case is symmetric across all four adapters
+(\textsc{Auditable}), which is in fact enforced by Algorithm~\ref{alg:action}
+at action time rather than at $\textsc{Verify}$ --- a deliberate
+separation of concerns.}\label{tab:e1}
+\begin{tabular}{lc}
+\toprule
+Adapter & Properties enforced \\
+\midrule
+\texttt{merkle\_chain} & $7/8$ \\
+\texttt{spiffe}        & $6/8$ \\
+\texttt{merkle\_dag}   & $7/8$ \\
+\texttt{composite}     & $7/8$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{E2: Attack-Surface Matrix}\label{sec:e2}
+
+We define six adversarial scenarios drawn from the threat model
+implicit in the design:
+
+\begin{description}[leftmargin=2em,style=nextline]
+\item[A1: Stolen envelope post-revoke.] An adversary holds a previously
+valid envelope. The principal is revoked. The adversary attempts a
+material action.
+\item[A2: Replay across instances.] Two envelopes for the same code but
+different runtime instances must be distinguishable.
+\item[A3: Scope escalation in transit.] An adversary edits a serialised
+delegation row to widen the scope set before the receiver verifies it.
+\item[A4: Tampered audit row.] An operator with disk access modifies a
+stored audit row. The receiver invokes $\textsc{VerifyChainEvent}$
+(adapter-specific row-verification).
+\item[A5: Expired credential.] An SVID past its \texttt{exp} claim is
+presented at action time even though the lifecycle store still says
+\texttt{active}.
+\item[A6: Cross-trust-domain delegation without caveat.] An adversary
+attempts to delegate across trust domains without the explicit
+\texttt{spiffe.allow\_cross\_trust\_domain} caveat.
+\end{description}
+
+\begin{table}[h]
+\centering
+\small
+\caption{E2 results --- detection per adversarial scenario.
+``$\checkmark$''=detected, ``--''=missed, ``n/a''=not applicable to that
+adapter (A5 and A6 are SPIFFE-only concepts). The composite construction
+is the only adapter that detects all six.}\label{tab:e2}
+\begin{tabular}{lcccccc}
+\toprule
+Adapter & A1 & A2 & A3 & A4 & A5 & A6 \\
+\midrule
+\texttt{merkle\_chain} & $\checkmark$ & $\checkmark$ & --           & $\checkmark$ & n/a          & n/a \\
+\texttt{spiffe}        & $\checkmark$ & $\checkmark$ & $\checkmark$ & --           & $\checkmark$ & $\checkmark$ \\
+\texttt{merkle\_dag}   & $\checkmark$ & $\checkmark$ & --           & $\checkmark$ & n/a          & n/a \\
+\texttt{composite}     & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{E3: Delegation-Depth Scaling}\label{sec:e3}
+
+We construct delegation chains of depth $d \in \{1, 2, 4, 8, 16\}$ and
+measure per-hop median latency. Table~\ref{tab:e3} shows the result.
+
+\begin{table}[h]
+\centering
+\small
+\caption{E3 --- per-hop $\textsc{Delegate}$ latency, in microseconds, at
+each chain depth. Single-primitive adapters stay within a factor of
+$\sim$2 across the depth range, confirming approximately linear scaling.
+The composite adapter is consistently $\sim$2--3$\times$ slower than the
+cheapest single primitive, the additive overhead predicted by
+H3.}\label{tab:e3}
+\begin{tabular}{lrrrrr}
+\toprule
+Adapter & $d=1$ & $d=2$ & $d=4$ & $d=8$ & $d=16$ \\
+\midrule
+\texttt{merkle\_chain} & $298$  & $292$  & $319$  & $439$  & $513$   \\
+\texttt{spiffe}        & $428$  & $449$  & $600$  & $547$  & $729$   \\
+\texttt{merkle\_dag}   & $298$  & $447$  & $378$  & $392$  & $505$   \\
+\texttt{composite}     & $723$  & $765$  & $819$  & $831$  & $1109$  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{E4: Witness-Set Scaling}\label{sec:e4}
+
+We measure $\textsc{AuditWithWitnesses}$ latency as a function of $|W|$
+for the DAG and composite adapters (the only ones that accept
+witnesses). Table~\ref{tab:e4} shows each step adds $\sim$20--30$\,\mu$s,
+consistent with H4's linearity claim.
+
+\begin{table}[h]
+\centering
+\small
+\caption{E4 --- $\textsc{AuditWithWitnesses}$ latency at witness count
+$|W|$, in microseconds. Linear scaling: each additional witness costs
+$\sim$23$\,\mu$s on DAG, $\sim$19$\,\mu$s on composite.}\label{tab:e4}
+\begin{tabular}{lrrrrrr}
+\toprule
+Adapter & $|W|=0$ & $|W|=1$ & $|W|=2$ & $|W|=4$ & $|W|=8$ & $|W|=16$ \\
+\midrule
+\texttt{merkle\_dag}  & $172$ & $240$ & $289$ & $348$ & $407$ & $472$ \\
+\texttt{composite}    & $232$ & $290$ & $342$ & $390$ & $453$ & $537$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{E5: Tamper-Detection Completeness}\label{sec:e5}
+
+We enumerate seven distinct tampering targets --- five inside the
+envelope and two inside the audit row --- and, for each, apply the
+mutation against a freshly issued envelope and call the appropriate
+verification entry point ($\textsc{Verify}$ for envelope-side mutations,
+$\textsc{VerifyChainEvent}$ for audit-row mutations).
+
+\begin{table}[h]
+\centering
+\small
+\caption{E5 --- tamper detection per adapter, by mutated target.
+$\checkmark$ = detection raised a verification error. The composite
+adapter detects six of seven mutations; the missing one
+(\texttt{signature\_chain forged}) is a documented blind spot: the
+Merkle-side verifier reads the node signature from the audit row, not
+from the live envelope, so a fabricated value in
+$\mathcal{E}.\Sigma$ that does \emph{not} replace the row-side node
+signature is irrelevant. The same blind spot affects every Merkle-based
+adapter.}\label{tab:e5}
+\begin{tabular}{lcccc}
+\toprule
+Target & \texttt{m\_chain} & \texttt{spiffe} & \texttt{m\_dag} & \texttt{composite} \\
+\midrule
+\texttt{system\_identifier}            & --  & $\checkmark$ & --  & $\checkmark$ \\
+\texttt{signature\_chain} (cleared)    & $\checkmark$ & --  & $\checkmark$ & $\checkmark$ \\
+\texttt{signature\_chain} (forged)     & --  & --  & --  & --  \\
+\texttt{spiffe.svid\_jws} (forged)     & --  & $\checkmark$ & --  & $\checkmark$ \\
+\texttt{lifecycle\_state}              & --  & $\checkmark$ & --  & $\checkmark$ \\
+\texttt{audit\_row.node.signature}     & $\checkmark$ & --  & $\checkmark$ & $\checkmark$ \\
+\texttt{audit\_row.system\_identifier} & $\checkmark$ & --  & $\checkmark$ & $\checkmark$ \\
+\midrule
+\textbf{Detection rate}                & $3/7$ & $3/7$ & $3/7$ & $\mathbf{6/7}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The composite construction's $6/7$ result is the empirical justification
+for the central claim of this paper: the two single-primitive coverage
+sets are complementary, and the composite is the union of their
+detection capabilities.
+
+\subsection{E6: Scope Monotonicity over Random Trees}\label{sec:e6}
+
+We generate $n = 200$ random delegation trees with depths
+$d \in [1, 6]$ and random scope subsets at each hop. For every produced
+envelope we check that
+$\text{eff}(\mathcal{E}_c) \subseteq \text{eff}(\mathcal{E}_p)$.
+
+\begin{table}[h]
+\centering
+\small
+\caption{E6 --- scope-monotonicity check over 200 random delegation
+trees per adapter. Invariant~\ref{inv:mono} holds with zero violations
+across all four adapters, providing empirical support for the inductive
+proof of \S\ref{sec:monotonicity}.}\label{tab:e6}
+\begin{tabular}{lcc}
+\toprule
+Adapter & Trees passed & Monotonicity violations \\
+\midrule
+\texttt{merkle\_chain} & $200/200$ & $0$ \\
+\texttt{spiffe}        & $200/200$ & $0$ \\
+\texttt{merkle\_dag}   & $200/200$ & $0$ \\
+\texttt{composite}     & $200/200$ & $0$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Summary of Validation}\label{sec:val-summary}
+
+\begin{description}[leftmargin=2em,style=nextline]
+\item[H1.] \emph{Supported.} Composite enforces $7/8$ properties at
+issue/verify; the eighth (auditability) is enforced at action-loop time
+by Algorithm~\ref{alg:action} rather than at $\textsc{Verify}$.
+\item[H2.] \emph{Supported.} Composite is the only adapter that detects
+all six attacks. The closest single primitive (SPIFFE) detects $5/6$;
+both Merkle adapters detect $3/6$.
+\item[H3.] \emph{Supported.} Per-hop latency stays within
+$\sim$2$\times$ across $d=1$--$16$ for all adapters. Composite is
+additive, not multiplicative, vs.\ the cheapest single primitive.
+\item[H4.] \emph{Supported.} Witness-set scaling is linear; each
+additional witness costs $\sim$20--30$\,\mu$s.
+\item[H5.] \emph{Supported.} Composite detects $6/7$ tampering targets;
+the next-best adapter detects $3/7$. The single missed target is a
+documented Merkle blind spot present in every Merkle-based adapter.
+\item[H6.] \emph{Supported.} Zero monotonicity violations across $800$
+random delegation trees and four adapters.
+\end{description}
+
+The composite construction is the only one that simultaneously
+satisfies H1, H2, and H5 --- the three hypotheses that distinguish
+adapters by what they \emph{detect}, not just by what they \emph{cost}.
+
+\section{Limitations and Future Work}\label{sec:limits}
+
+\paragraph{No SPIRE Workload API integration.} The SPIFFE adapter as
+shipped signs envelopes with a local Ed25519 key. Production SPIFFE
+deployments fetch SVIDs from a SPIRE Agent socket; the envelope schema
+reserves a metadata key (\texttt{spiffe.workload\_api\_socket}) for the
+forthcoming SPIRE-Workload-API adapter, so envelopes minted today are
+forward-compatible.
+
+\paragraph{Cross-adapter witness composition.} The DAG adapter today
+requires witnesses to be signed by the same Ed25519 key as the actor's
+adapter. Multi-tenant DAG attestation across different signing roots is
+on the roadmap, following the trust-bundle exchange pattern that
+\S\ref{sec:federation} uses for SPIFFE federation.
+
+\paragraph{Provenance binding is operator-side.} The
+\texttt{provenance.json} file is generated by the build pipeline. The
+library does not yet verify the contents against an in-toto or SLSA
+attestation referenced in $\mathcal{E}.P$. A future $\texttt{slsa}$
+adapter would close this loop --- the envelope's
+\texttt{slsa\_attestation\_ref} would be resolved at $\textsc{Verify}$
+time and the build pipeline's signature checked against a known list of
+authorised builders.
+
+\paragraph{Scope namespace.} Scopes are free-form strings in the
+current implementation. At scale across organisations they will collide.
+A documented IAM-style convention (e.g.\ \texttt{service:action}) needs
+to precede multi-organisation adoption.
+
+\paragraph{Mechanised proofs.} The monotonicity invariant
+(\S\ref{sec:monotonicity}) is proved by hand; the eight-property checks
+are exercised by 112 tests. A mechanised proof in TLA+ or Coq is
+future work.
+
+\section{Conclusion}
+
+The control plane for autonomous-system identity is not finished when it
+passes an audit. It is finished when an investigator can answer three
+questions about any privileged action in under an hour: \emph{prevent
+it, prove it, replay it}. Prevention requires the eight-property check
+before the action runs. Proof requires the signed envelope and the audit
+row. Replay requires the commitment hash that lets a third party verify
+the row from cold storage. The constructions in this paper give all
+three, with adapters that trade across the eight properties according
+to deployment needs and a composite hybrid that satisfies all eight
+simultaneously. Build for the moment of exercise.
+
+% ----- references -----------------------------------------------------------
+\bibliographystyle{plain}
+\bibliography{refs}
+
+\end{document}

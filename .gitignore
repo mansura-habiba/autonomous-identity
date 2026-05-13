@@ -20,3 +20,9 @@ docs/blog/*
 *.json
 src/.env
 *.db
+*.out
+*.pdf
+*.log
+*.aux
+*.blg
+*.bbl
