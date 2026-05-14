@@ -234,7 +234,7 @@ A jurisdiction policy can start with two lists:
 
 ```text
 allowed_regions
- denied_regions
+denied_regions
 ```
 
 If `allowed_regions` is empty, the verifier only enforces the denied list. If `allowed_regions` is non-empty, the action region must appear in the allowed list and must not appear in the denied list.
@@ -271,6 +271,175 @@ An audit row could look like:
     ]
   }
 }
+```
+
+## Development guidelines
+
+This package should be developed as a receiver-side authority verifier, not as another identity adapter. The implementation should remain small, dependency-light, and explicit about every trust decision it makes.
+
+### 1. Keep cryptographic identity and authority semantics separate
+
+Do not move federation policy logic into the SPIFFE or composite adapters. The adapters should continue to mint, bind, and verify cryptographic artifacts. The federation layer should decide whether the receiver accepts a federated authority under local policy.
+
+A good boundary is:
+
+```text
+adapter.verify(envelope) answers: Is this envelope cryptographically valid?
+federation.verify(envelope, policy) answers: Is this federated authority acceptable here?
+```
+
+### 2. Prefer structured decisions over exceptions for policy denials
+
+Policy denials should normally return a `FederationDecision` with `allowed=false` and a list of failed checks. Exceptions should be reserved for programmer errors, malformed inputs that cannot be interpreted, or storage/IO failures.
+
+This keeps rejected authority paths auditable and testable.
+
+### 3. Fail closed when federation evidence is missing
+
+If an envelope crosses trust domains but does not carry an explicit federation caveat, the verifier must reject it. If an SVID, key ID, trust bundle, audience, or required scope mapping is missing, the verifier must reject rather than infer intent.
+
+No cross-domain authority should be accepted by default.
+
+### 4. Make scope translation explicit
+
+Do not assume that a scope string has the same meaning in two trust domains. The receiver must explicitly map source-domain scopes into receiver-local scopes.
+
+For example:
+
+```text
+source scope: work.request
+receiver scope: intake.submit
+```
+
+The absence of a mapping should be a denial, not a pass-through.
+
+### 5. Preserve monotone attenuation
+
+Federation must not create authority. It can only translate and further constrain authority that already exists in the delegated envelope.
+
+The verifier should check both:
+
+```text
+requested source scope is represented in the delegated authority
+mapped receiver scope is allowed by receiver policy
+```
+
+If there is ambiguity between source scope and mapped scope, choose the narrower interpretation or reject.
+
+### 6. Treat audience as mandatory for material actions
+
+For low-risk discovery or diagnostics, an omitted audience may be tolerable during development. For material actions, the receiver should require an audience and check it against policy.
+
+This prevents a federated envelope intended for one service from being replayed against another service.
+
+### 7. Keep revocation simple first
+
+The first implementation should use local revocation lists for subjects, key IDs, and delegation IDs. Do not start with distributed revocation protocols, transparency logs, or online status checks unless there is a concrete use case.
+
+The design should allow those mechanisms later through an interface, but the first version should be deterministic and easy to test.
+
+### 8. Make jurisdiction receiver-owned
+
+Jurisdiction constraints should be evaluated by the receiver's policy. The envelope may carry metadata, but the receiver decides whether an action region is acceptable.
+
+When in doubt, reject if the action region is required by policy but missing from the request context.
+
+### 9. Avoid global claims in code and documentation
+
+Do not name the package, classes, or documentation in a way that implies a universal federation standard. Prefer names such as:
+
+```text
+FederationAuthorityVerifier
+FederationPolicy
+FederationDecision
+TrustedDomainPolicy
+```
+
+Avoid names such as:
+
+```text
+GlobalFederationStandard
+UniversalTrustVerifier
+CompleteFederationSemantics
+```
+
+### 10. Keep the first implementation dependency-light
+
+The first implementation should be pure Python and use existing project primitives. Prefer JSON policy loading before YAML unless YAML is already a project dependency.
+
+Do not introduce OPA, Cedar, Rego, SPIRE APIs, or cloud KMS dependencies in the first package. Those can be adapters later.
+
+### 11. Test accepted and rejected paths equally
+
+Federation tests should not only prove that happy paths work. They should prove that unsafe paths fail closed.
+
+Required test categories:
+
+- trusted source domain accepted,
+- unknown source domain rejected,
+- inactive source domain rejected,
+- missing federation caveat rejected,
+- wrong audience rejected,
+- missing audience rejected for material actions,
+- unmapped scope rejected,
+- mapped scope outside receiver policy rejected,
+- attempted scope expansion rejected,
+- revoked subject rejected,
+- revoked key ID rejected,
+- TTL above maximum rejected,
+- denied region rejected,
+- missing required region rejected,
+- structured decision contains every check,
+- accepted and rejected decisions can be written to the audit store.
+
+### 12. Keep examples separate from the core package
+
+The package should provide reusable primitives. A2A, LangGraph, MCP, or service-specific federation examples should remain under `examples/`.
+
+The core federation package should not import from example code.
+
+### 13. Make the audit trail useful to humans
+
+Every failed check should include a human-readable detail string. Avoid messages that only say `false` or `not allowed`.
+
+Good:
+
+```text
+audience spiffe://tenant-b.example/services/x is not in allowed audiences
+```
+
+Weak:
+
+```text
+audience failed
+```
+
+### 14. Version the policy shape
+
+When the implementation starts, include a policy version field. Federation semantics will evolve, and old policy files should not be silently interpreted under new rules.
+
+Example:
+
+```yaml
+federation:
+  version: 1
+  receiver_trust_domain: tenant-b.example
+```
+
+### 15. Document what the implementation does not prove
+
+Every release note or paper section that mentions federation should say what the package does and does not prove.
+
+The first implementation may claim:
+
+```text
+bounded receiver-side federation authority verification
+```
+
+It should not claim:
+
+```text
+complete global federation semantics
 ```
 
 ## Example acceptance case
