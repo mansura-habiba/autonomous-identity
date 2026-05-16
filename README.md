@@ -43,7 +43,7 @@ strong on different axes; `primary-idea.md` Table 8.2 documents the trade-offs.
 For the long-form argument — fly-by-wire envelope protection as the analogue,
 what the eight properties mean operationally, and what changes on Tuesday
 afternoon when the envelope shows up — read
-[`docs/blog/identity-is-the-moment-of-action.md`](docs/blog/identity-is-the-moment-of-action.md).
+[`identity-is-the-moment-of-action.md`](d[ocs/blog/identity-is-the-moment-of-action.md](https://mansura-habiba.github.io/blog/posts/2026-05-15-identity-at-action)).
 
 ---
 
