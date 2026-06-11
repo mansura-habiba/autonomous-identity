@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="autonomous-identity-docs" version="24.7.0">
+  <diagram name="C4 L3 — Components" id="c4l3">
+    <mxGraphModel dx="1422" dy="757" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="autonomous-identity &#x2014; C4 Level 3 (Components inside Facade / Core / Adapters / Federation)" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1420" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Facade container -->
+        <mxCell id="bF" value="Application Facade" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#b1421c;strokeWidth=1.5;dashed=1;verticalAlign=top;fontStyle=1;fontSize=12;fontFamily=Helvetica;fontColor=#7a2d12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="80" width="320" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="cF1" value="AutonomousIdentity&#xa;&#xa;Public entry: issue, delegate,&#xa;verify, material_action." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0d9cf;strokeColor=#b1421c;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="80" y="120" width="280" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cF2" value="DelegationChain&#xa;&#xa;Walks lineage; computes effective&#xa;scopes by intersection." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0d9cf;strokeColor=#b1421c;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="80" y="220" width="280" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cF3" value="RuntimeConfig&#xa;&#xa;Loaded at process start.&#xa;Strictness, audit backend, defaults." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0d9cf;strokeColor=#b1421c;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="80" y="320" width="280" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Core container -->
+        <mxCell id="bC" value="Core" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#d6b656;strokeWidth=1.5;dashed=1;verticalAlign=top;fontStyle=1;fontSize=12;fontFamily=Helvetica;fontColor=#7a5a08;" vertex="1" parent="1">
+          <mxGeometry x="60" y="500" width="700" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="cC1" value="IdentityEnvelope&#xa;&#xa;Frozen dataclass &#x2014; the atomic unit.&#xa;Eight properties." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="80" y="540" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cC2" value="IdentityValidator&#xa;&#xa;Enforces strictness rules.&#xa;Refuses with typed reason." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="300" y="540" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cC3" value="Hashing&#xa;&#xa;SHA-256-based commitment helpers.&#xa;Used by audit + identity." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="520" y="540" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cC4" value="Serialise / Deserialise&#xa;&#xa;Canonical JSON for signing &amp; storage." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="80" y="640" width="320" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cC5" value="ScopeConvention&#xa;&#xa;Optional naming-convention checker." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="420" y="640" width="300" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Adapters container -->
+        <mxCell id="bA" value="Adapters" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;strokeWidth=1.5;dashed=1;verticalAlign=top;fontStyle=1;fontSize=12;fontFamily=Helvetica;fontColor=#1a3e72;" vertex="1" parent="1">
+          <mxGeometry x="800" y="80" width="640" height="440" as="geometry" />
+        </mxCell>
+        <mxCell id="cA1" value="SpiffeIdentityAdapter&#xa;&#xa;Encode / decode JWT-SVID.&#xa;Sign envelopes; rehydrate on receipt." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="820" y="120" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cA2" value="MerkleChainIdentityAdapter&#xa;&#xa;Audit log as hash-linked chain.&#xa;Default audit shape." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="120" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cA3" value="MerkleDagIdentityAdapter&#xa;&#xa;Audit as a DAG for branching&#xa;delegation trees." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="820" y="230" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cA4" value="CompositeAdapter&#xa;&#xa;Combines multiple adapters for&#xa;multi-format deployments." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="230" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cA5" value="AdapterRegistry&#xa;&#xa;Module-level registry. Integrators&#xa;register custom adapters here." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="980" y="340" width="280" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Federation container -->
+        <mxCell id="bFd" value="Federation" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#82b366;strokeWidth=1.5;dashed=1;verticalAlign=top;fontStyle=1;fontSize=12;fontFamily=Helvetica;fontColor=#2c5e2f;" vertex="1" parent="1">
+          <mxGeometry x="800" y="540" width="640" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="cFd1" value="FederationPolicy&#xa;&#xa;Per-tenant policy: accepted issuers,&#xa;scope prefixes, TTL, caveats." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="820" y="580" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cFd2" value="TrustedDomainPolicy&#xa;&#xa;Allowlist of trust domains the&#xa;receiver will entertain." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="580" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cFd3" value="FederationAuthorityVerifier&#xa;&#xa;Runs envelope through both policies,&#xa;emits FED_VERIFY / FED_DENY." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="820" y="690" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cFd4" value="FederationAudit&#xa;&#xa;Federation-specific audit records.&#xa;Flow into the same chain." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="690" width="280" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Edges across containers -->
+        <mxCell id="x1" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cF1" target="cC1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x2" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cF1" target="cC2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x3" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cF1" target="cA1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x4" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cF1" target="cA2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x5" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cF1" target="cFd3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x6" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cF2" target="cC1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x7" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cF2" target="cA2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x8" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cFd3" target="cFd1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x9" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cFd3" target="cFd2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x10" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cFd3" target="cFd4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x11" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cFd3" target="cA1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x12" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cA1" target="cC1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x13" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cA1" target="cC3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x14" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cA2" target="cC3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x15" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cA2" target="cC4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="x16" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cC2" target="cC5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

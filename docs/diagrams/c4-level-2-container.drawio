@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="autonomous-identity-docs" version="24.7.0">
+  <diagram name="C4 L2 — Containers" id="c4l2">
+    <mxGraphModel dx="1422" dy="757" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="autonomous-identity &#x2014; C4 Level 2 (Containers)" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1320" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Boundary -->
+        <mxCell id="boundary" value="autonomous-identity (Python library)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#b1421c;strokeWidth=2;dashed=1;verticalAlign=top;fontStyle=1;fontSize=14;fontFamily=Helvetica;fontColor=#7a2d12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="80" width="1280" height="780" as="geometry" />
+        </mxCell>
+
+        <!-- Application Facade -->
+        <mxCell id="facade" value="**Application Facade**&#xa;application/&#xa;&#xa;AutonomousIdentity&#xa;DelegationChain&#xa;RuntimeConfig&#xa;&#xa;Public API. Composes all surfaces&#xa;into issue/delegate/verify/material_action." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b1421c;strokeColor=#7a2d12;fontColor=#ffffff;fontSize=12;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="520" y="140" width="320" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- Federation -->
+        <mxCell id="federation" value="**Federation**&#xa;federation/&#xa;&#xa;FederationPolicy&#xa;TrustedDomainPolicy&#xa;FederationAuthorityVerifier&#xa;FederationAudit&#xa;&#xa;Cross-domain envelope recognition." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="900" y="140" width="280" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- Adapters -->
+        <mxCell id="adapters" value="**Adapters**&#xa;adapters/&#xa;&#xa;SpiffeIdentityAdapter&#xa;MerkleChainIdentityAdapter&#xa;MerkleDagIdentityAdapter&#xa;CompositeAdapter&#xa;AdapterRegistry&#xa;&#xa;Pluggable encoding &amp; audit." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="520" y="360" width="320" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- Core -->
+        <mxCell id="core" value="**Core**&#xa;core/&#xa;&#xa;IdentityEnvelope&#xa;IdentityValidator (strict / development)&#xa;Hashing (SHA-256, commitments)&#xa;Serialise / Deserialise&#xa;ScopeConvention&#xa;&#xa;Pure data &amp; rules. No I/O." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="520" y="580" width="320" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- Storage -->
+        <mxCell id="storage" value="**Storage**&#xa;storage/&#xa;&#xa;memory.py&#xa;file.py&#xa;sqlite.py&#xa;postgres.py&#xa;&#xa;Append-only contract enforced by tests." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="100" y="360" width="280" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- Crypto -->
+        <mxCell id="crypto" value="**Crypto**&#xa;crypto/&#xa;&#xa;Ed25519 sign &amp; verify&#xa;Single integration surface for&#xa;HSM / TPM / TEE-backed keys." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="100" y="580" width="280" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- Tracing -->
+        <mxCell id="tracing" value="**Tracing**&#xa;tracing/&#xa;&#xa;OpenTelemetry / Langfuse&#xa;Optional; opt-in via extras." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="100" y="140" width="280" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- Integrations -->
+        <mxCell id="integrations" value="**Integrations**&#xa;integrations/&#xa;&#xa;LangChain&#xa;LangGraph&#xa;Langflow&#xa;&#xa;Depend on the facade only." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="900" y="360" width="280" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- CLI -->
+        <mxCell id="cli" value="**CLI**&#xa;cli/&#xa;&#xa;asid &#x2014; inspect, verify, replay" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="900" y="580" width="280" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Config -->
+        <mxCell id="config" value="**Config**&#xa;config/&#xa;&#xa;RuntimeConfig &#x2014; loaded once at startup." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontFamily=Helvetica;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="900" y="700" width="280" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="facade" target="core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="facade" target="adapters">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="facade" target="federation">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="facade" target="storage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="facade" target="tracing">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="federation" target="core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="federation" target="adapters">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="adapters" target="core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="adapters" target="crypto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="adapters" target="storage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="core" target="crypto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="integrations" target="facade">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" style="endArrow=open;html=1;fontSize=10;" edge="1" parent="1" source="cli" target="facade">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" style="endArrow=open;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="facade" target="config">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

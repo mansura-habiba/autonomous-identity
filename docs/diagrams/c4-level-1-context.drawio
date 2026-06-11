@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="autonomous-identity-docs" version="24.7.0">
+  <diagram name="C4 L1 — System Context" id="c4l1">
+    <mxGraphModel dx="1422" dy="757" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="autonomous-identity &#x2014; C4 Level 1 (System Context)" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1320" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- External actors -->
+        <mxCell id="human" value="Human user&#xa;/ operator" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;html=1;outlineConnect=0;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="160" width="40" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="agent" value="Autonomous&#xa;agent process" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="220" y="260" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="auditor" value="Auditor /&#xa;regulator" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;html=1;outlineConnect=0;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="540" width="40" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- System under design -->
+        <mxCell id="sys" value="autonomous-identity&#xa;&#xa;Library that issues, delegates,&#xa;verifies, and audits identity envelopes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b1421c;strokeColor=#7a2d12;fontColor=#ffffff;fontSize=14;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="600" y="380" width="240" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Neighbouring systems -->
+        <mxCell id="oidc" value="OIDC IdP&#xa;&#xa;Authenticates humans;&#xa;emits id_token" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="220" y="100" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="spiffe" value="SPIFFE / SPIRE&#xa;&#xa;Workload identity;&#xa;JWT-SVID, JWKS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="480" y="100" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="kms" value="Key custody&#xa;&#xa;HSM / TPM / TEE&#xa;Ed25519 signing key" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="740" y="100" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="storage" value="Pluggable storage&#xa;&#xa;Memory / SQLite /&#xa;Postgres / File" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="280" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tracing" value="Observability&#xa;&#xa;OpenTelemetry /&#xa;Langfuse" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="380" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gateway" value="Policy enforcement point&#xa;&#xa;agentgateway / Envoy /&#xa;custom gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="480" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="catalog" value="Capability catalogue&#xa;&#xa;SKILL.md, MCP tool registry,&#xa;plugins" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="580" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Relationships -->
+        <mxCell id="r1" value="authenticates" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="human" target="oidc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r2" value="emits id_token" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="oidc" target="agent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r3" value="issue, delegate, verify, material_action" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;fontStyle=1;" edge="1" parent="1" source="agent" target="sys">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r4" value="signs / verifies" style="endArrow=open;startArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="sys" target="kms">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r5" value="trust-domain SVIDs &amp; JWKS" style="endArrow=open;startArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="sys" target="spiffe">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r6" value="persists envelopes &amp; audit chain" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="sys" target="storage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r7" value="spans, attributes" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="sys" target="tracing">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r8" value="envelope on Signature-Key" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="agent" target="gateway">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="950" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="r9" value="ExtAuthz verify" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="gateway" target="sys">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r10" value="material_action guards dynamic loads" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="sys" target="catalog">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r11" value="replay, inspect" style="endArrow=open;html=1;dashed=1;fontSize=11;fontFamily=Helvetica;fontStyle=2;" edge="1" parent="1" source="auditor" target="sys">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend" value="Legend" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;align=left;verticalAlign=top;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="700" width="180" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" value="" style="rounded=1;fillColor=#b1421c;strokeColor=#7a2d12;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="730" width="20" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1t" value="System in scope" style="text;align=left;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="725" width="140" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" value="" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="752" width="20" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2t" value="Actor / process" style="text;align=left;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="747" width="140" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" value="" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="774" width="20" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3t" value="Trust / crypto system" style="text;align=left;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="769" width="140" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" value="" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="796" width="20" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4t" value="Infra / storage / observability" style="text;align=left;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="791" width="140" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5" value="" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="818" width="20" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5t" value="IdP / external auth" style="text;align=left;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="813" width="140" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

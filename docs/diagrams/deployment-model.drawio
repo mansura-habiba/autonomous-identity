@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="autonomous-identity-docs" version="24.7.0">
+  <diagram name="Deployment — Shape C" id="deploy">
+    <mxGraphModel dx="1422" dy="757" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Deployment model &#x2014; Shape C (library + ExtAuthz sidecar)" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1320" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Host -->
+        <mxCell id="host" value="Host node / K8s pod / VM" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;dashed=1;verticalAlign=top;fontStyle=1;fontSize=13;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="60" y="80" width="1280" height="780" as="geometry" />
+        </mxCell>
+
+        <!-- Agent process -->
+        <mxCell id="agentpod" value="Agent process" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;strokeWidth=1.5;verticalAlign=top;fontStyle=1;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="100" y="130" width="500" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="agentapp" value="Agent application code&#xa;(LangGraph, A2A executor, custom)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="140" y="180" width="420" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="lib1" value="autonomous-identity&#xa;(imported)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0d9cf;strokeColor=#b1421c;fontSize=12;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="180" y="290" width="340" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="agentnote" value="Signs root + delegated envelopes.&#xa;Calls outbound with Signature-Key header." style="text;html=1;align=center;fontSize=11;fontFamily=Helvetica;fontColor=#6a7079;" vertex="1" parent="1">
+          <mxGeometry x="140" y="370" width="420" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Gateway pod -->
+        <mxCell id="gwpod" value="Gateway pod" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#82b366;strokeWidth=1.5;verticalAlign=top;fontStyle=1;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="700" y="130" width="500" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="gw" value="agentgateway / Envoy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="740" y="180" width="420" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="extauthz" value="aid-extauthz sidecar (gRPC :7070)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="740" y="260" width="420" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="lib2" value="autonomous-identity&#xa;(imported &#x2014; verify only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0d9cf;strokeColor=#b1421c;fontSize=12;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="780" y="340" width="340" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Shared infra -->
+        <mxCell id="key" value="HSM / TPM / TEE&#xa;Stable Ed25519 signing key" style="shape=mscae/safe;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontFamily=Helvetica;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="200" y="540" width="80" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="db" value="Postgres&#xa;envelopes + audit chain" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="660" y="540" width="120" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="jwks" value="JWKS publisher&#xa;(per trust domain)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="980" y="560" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="d1" value="import" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;fontStyle=2;" edge="1" parent="1" source="agentapp" target="lib1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d2" value="sign (Ed25519)" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="lib1" target="key">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d3" value="persist envelope" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="lib1" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d4" value="outbound call&#10;Signature-Key: SVID" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;fontStyle=1;strokeColor=#b1421c;strokeWidth=1.5;" edge="1" parent="1" source="agentapp" target="gw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d5" value="ExtAuthz CheckRequest" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="gw" target="extauthz">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d6" value="verify envelope" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="extauthz" target="lib2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d7" value="JWKS lookup (cached)" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="lib2" target="jwks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d8" value="append audit record" style="endArrow=open;html=1;fontSize=11;fontFamily=Helvetica;" edge="1" parent="1" source="lib2" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Notes -->
+        <mxCell id="note1" value="Shape A &#x2014; In-agent only:&#10;omit the gateway pod; the agent verifies its peers' envelopes itself.&#10;&#10;Shape B &#x2014; ExtAuthz only:&#10;omit the agent block; the library is loaded only inside the sidecar.&#10;&#10;Shape C (this diagram) &#x2014; Both:&#10;defence-in-depth; recommended production deployment." style="text;html=1;align=left;verticalAlign=top;fillColor=#fbfaf6;strokeColor=#1b1d21;fontSize=11;fontFamily=Helvetica;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="100" y="680" width="1100" height="140" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
