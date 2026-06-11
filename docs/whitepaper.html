@@ -1,0 +1,1542 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Autonomous Identity — An Envelope, Not a Gate</title>
+<meta name="description" content="Identity as substrate for agentic systems. A whitepaper on envelopes, attenuation, federation, material actions, and replayable audit." />
+<style>
+  :root {
+    --ink:        #1b1d21;
+    --ink-soft:   #3b3f46;
+    --ink-mute:   #6a7079;
+    --paper:      #fbfaf6;
+    --rule:       #d8d3c4;
+    --accent:     #b1421c;
+    --accent-soft:#f0d9cf;
+    --tint:       #efebdc;
+    --tint-2:     #e6e1d0;
+    --code-bg:    #f4f1e6;
+    --good:       #2f6f3a;
+    --bad:        #a02828;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 17px/1.65 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    text-rendering: optimizeLegibility;
+  }
+  header.hero {
+    padding: 80px 24px 56px;
+    border-bottom: 1px solid var(--rule);
+    background: linear-gradient(180deg, var(--tint) 0%, var(--paper) 100%);
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+  .wide { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+  h1 {
+    font-family: "Inter", "Helvetica Neue", system-ui, sans-serif;
+    font-size: 44px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em;
+    margin: 0 0 12px;
+  }
+  h1 small {
+    display: block; font-size: 18px; font-weight: 500; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.16em; margin-bottom: 18px;
+  }
+  .deck {
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 21px; line-height: 1.45; color: var(--ink-soft);
+    max-width: 640px;
+  }
+  .byline {
+    margin-top: 32px;
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 14px; color: var(--ink-mute); letter-spacing: 0.04em;
+  }
+  .byline strong { color: var(--ink); }
+  h2 {
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em;
+    margin: 64px 0 8px;
+    color: var(--ink);
+  }
+  h2 .num {
+    display: inline-block; width: 1.6em;
+    color: var(--accent); font-variant-numeric: tabular-nums;
+  }
+  h3 {
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 20px; line-height: 1.3; font-weight: 600;
+    margin: 32px 0 8px;
+  }
+  p { margin: 0 0 18px; }
+  p + p { margin-top: -2px; }
+  em { color: var(--ink); }
+  strong { font-weight: 700; color: var(--ink); }
+  a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+  code, .mono {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.92em;
+    background: var(--code-bg);
+    padding: 1px 6px; border-radius: 3px;
+  }
+  pre {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    background: var(--code-bg);
+    padding: 16px 18px; border-radius: 4px;
+    font-size: 14px; line-height: 1.55;
+    overflow-x: auto;
+    border-left: 3px solid var(--accent);
+    margin: 12px 0 24px;
+  }
+  pre code { background: transparent; padding: 0; }
+  blockquote {
+    margin: 24px 0; padding: 8px 22px;
+    border-left: 3px solid var(--accent);
+    color: var(--ink-soft); font-style: italic;
+  }
+  .pullquote {
+    font-family: "Inter", system-ui, sans-serif;
+    font-style: normal; font-weight: 600;
+    font-size: 22px; line-height: 1.4;
+    margin: 32px 0; padding: 0 0 0 22px;
+    border-left: 4px solid var(--accent);
+    color: var(--ink);
+  }
+  .callout {
+    background: var(--tint);
+    border-left: 4px solid var(--accent);
+    padding: 16px 20px;
+    margin: 24px 0;
+    border-radius: 0 4px 4px 0;
+    font-size: 16px;
+  }
+  .callout h4 {
+    font-family: "Inter", system-ui, sans-serif;
+    margin: 0 0 6px; font-size: 13px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--accent);
+  }
+  table {
+    width: 100%; border-collapse: collapse; margin: 18px 0 28px;
+    font-size: 15px;
+  }
+  thead th {
+    text-align: left; padding: 10px 12px;
+    border-bottom: 2px solid var(--ink);
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  tbody tr:nth-child(even) { background: rgba(216, 211, 196, 0.18); }
+  .figure {
+    margin: 36px 0;
+    padding: 24px 20px 20px;
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+  }
+  .figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+  .figure figcaption {
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 14px; color: var(--ink-mute);
+    margin-top: 14px;
+    text-align: center;
+  }
+  .figure figcaption strong { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    margin: 48px auto;
+    max-width: 760px;
+    padding: 22px 24px 24px;
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+  }
+  nav.toc h3 {
+    margin: 0 0 12px; font-size: 13px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--ink-mute);
+  }
+  nav.toc ol {
+    margin: 0; padding: 0; list-style: none;
+    columns: 2; column-gap: 36px;
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 15px;
+  }
+  nav.toc li { margin: 4px 0; break-inside: avoid; }
+  nav.toc li::before { content: ""; }
+  nav.toc a { text-decoration: none; color: var(--ink-soft); }
+  nav.toc a:hover { color: var(--accent); }
+  nav.toc .num { color: var(--accent); display: inline-block; width: 2em; }
+  footer.colophon {
+    margin-top: 80px;
+    padding: 32px 24px 56px;
+    border-top: 1px solid var(--rule);
+    background: var(--tint);
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 14px; color: var(--ink-mute);
+  }
+  footer.colophon strong { color: var(--ink); }
+  .layer-label {
+    display: inline-block;
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 12px;
+    background: var(--accent-soft); color: var(--accent);
+    vertical-align: middle; margin-left: 12px;
+  }
+  .layer-label.tech { background: var(--tint-2); color: var(--ink); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 20px 0; }
+  .grid-2 > div { padding: 16px 18px; background: #fff; border: 1px solid var(--rule); border-radius: 4px; }
+  .grid-2 h4 { font-family: "Inter", system-ui, sans-serif; margin: 0 0 6px; font-size: 14px; }
+  @media (max-width: 720px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    nav.toc ol { columns: 1; }
+    h1 { font-size: 34px; }
+    .deck { font-size: 18px; }
+  }
+  @media print {
+    body { background: #fff; }
+    .figure { break-inside: avoid; }
+    h2 { break-before: page; }
+    header.hero { background: #fff; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>
+      <small>Autonomous Identity</small>
+      An Envelope, Not a Gate.
+    </h1>
+    <p class="deck">
+      Agentic systems break the model that identity is a moment of authentication
+      at a single boundary. This whitepaper makes the case for identity as a
+      <em>substrate</em> that travels with the work — and lays out the primitives
+      needed to build it.
+    </p>
+    <p class="byline">
+      A whitepaper on the <strong>autonomous-identity</strong> design.<br />
+      Written for CISOs, lead architects, and the platform teams between them.
+    </p>
+  </div>
+</header>
+
+<nav class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#sec-1"><span class="num">1.</span>Executive summary</a></li>
+    <li><a href="#sec-2"><span class="num">2.</span>Why identity-as-gate fails for agents</a></li>
+    <li><a href="#sec-3"><span class="num">3.</span>The shift: identity as substrate</a></li>
+    <li><a href="#sec-4"><span class="num">4.</span>The envelope: what it carries</a></li>
+    <li><a href="#sec-5"><span class="num">5.</span>Delegation and attenuation</a></li>
+    <li><a href="#sec-6"><span class="num">6.</span>Trust domains and federation</a></li>
+    <li><a href="#sec-7"><span class="num">7.</span>Material actions: in-process enforcement</a></li>
+    <li><a href="#sec-8"><span class="num">8.</span>The audit chain: replayable provenance</a></li>
+    <li><a href="#sec-9"><span class="num">9.</span>Threat model: what this defends against</a></li>
+    <li><a href="#sec-10"><span class="num">10.</span>Compared to OIDC, SPIFFE, and AAuth</a></li>
+    <li><a href="#sec-11"><span class="num">11.</span>Deployment patterns</a></li>
+    <li><a href="#sec-12"><span class="num">12.</span>Hard questions</a></li>
+  </ol>
+</nav>
+
+<main class="wrap">
+
+<!-- ============================================================ -->
+<section id="sec-1">
+<h2><span class="num">1.</span>Executive summary <span class="layer-label">For leadership</span></h2>
+
+<p>
+  An autonomous agent that calls another autonomous agent that calls a tool
+  is three identities deep before it reaches anything that can be locked down.
+  Treating that chain as a sequence of independent authentications is the
+  category error this whitepaper is written to correct.
+</p>
+
+<p class="pullquote">
+  Identity is not a check at the door. It is an envelope that travels with the
+  work.
+</p>
+
+<p>
+  The autonomous-identity model frames every agent-mediated action as a
+  <strong>signed envelope</strong> that accompanies the work as it crosses
+  agents, tenants, tools, and trust boundaries. Each boundary inspects the
+  envelope, attenuates it, signs the transition, and forwards it. The result
+  is a single, replayable record of authority from human user to leaf action
+  — auditable in hours, not weeks.
+</p>
+
+<p>
+  Three operating capabilities follow from the model:
+</p>
+
+<ul>
+  <li>
+    <strong>Provenance.</strong> Any leaf action — a tool call, a write, a
+    skill load — can be traced back through every hop to the human or system
+    that originated it. No log-diving required.
+  </li>
+  <li>
+    <strong>Attenuation.</strong> A child envelope can carry strictly fewer
+    capabilities than its parent. Authority can divide. It can never multiply.
+  </li>
+  <li>
+    <strong>Federation.</strong> Cross-tenant invocation becomes an
+    inspectable handoff with explicit, policy-checked recognition — not an
+    extension of an internal session.
+  </li>
+</ul>
+
+<p>
+  The remaining sections explain how the envelope is constructed, how it
+  attenuates and federates, where it is enforced (gateway, in-process, and
+  at the tool surface), how the audit chain is built, and what this defends
+  against. Section 10 compares the model to OIDC, SPIFFE, and AAuth — and
+  shows where each solves a different problem.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec-2">
+<h2><span class="num">2.</span>Why identity-as-gate fails for agents <span class="layer-label">For leadership</span></h2>
+
+<p>
+  The mistake most architectures make at this point is subtle but
+  consequential. They treat identity the way authentication systems have
+  always treated it: a moment, at a boundary, that produces a session.
+  The session then carries the user's authority forward, undifferentiated,
+  for the duration of the work.
+</p>
+
+<p>
+  That worked when the work was a human at a terminal. It does not work
+  when the work is a chain of autonomous agents.
+</p>
+
+<div class="figure">
+  <!-- Figure 1: Door vs envelope -->
+  <svg viewBox="0 0 1000 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two models contrasted: identity as a door check on the left, identity as an envelope that travels on the right.">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1b1d21"/>
+      </marker>
+      <marker id="arr-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#b1421c"/>
+      </marker>
+    </defs>
+    <style>
+      .lbl { font: 600 13px "Inter", system-ui, sans-serif; fill: #1b1d21; }
+      .sub { font: 12px "Inter", system-ui, sans-serif; fill: #6a7079; }
+      .ttl { font: 700 16px "Inter", system-ui, sans-serif; fill: #1b1d21; }
+      .box { fill: #fff; stroke: #1b1d21; stroke-width: 1.5; }
+      .gate { fill: #f0d9cf; stroke: #b1421c; stroke-width: 2; }
+      .env  { fill: #efebdc; stroke: #b1421c; stroke-width: 1.5; }
+    </style>
+
+    <!-- Left panel: door model -->
+    <text x="20" y="28" class="ttl">Identity as a door</text>
+    <text x="20" y="48" class="sub">One check. One moment. Authority flows forward unattenuated.</text>
+    <rect class="box" x="20"  y="80" width="100" height="60" rx="4"/>
+    <text x="70" y="115" text-anchor="middle" class="lbl">User</text>
+    <rect class="gate" x="160" y="80" width="60" height="60" rx="4"/>
+    <text x="190" y="108" text-anchor="middle" class="lbl">Gate</text>
+    <text x="190" y="125" text-anchor="middle" class="sub">authN</text>
+    <rect class="box" x="260" y="80" width="100" height="60" rx="4"/>
+    <text x="310" y="115" text-anchor="middle" class="lbl">Resource</text>
+    <line x1="120" y1="110" x2="158" y2="110" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr)"/>
+    <line x1="220" y1="110" x2="258" y2="110" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <text x="190" y="195" text-anchor="middle" class="sub">— works when the work is one user. —</text>
+
+    <text x="20" y="240" class="ttl">…then add agents</text>
+    <rect class="box" x="20"  y="260" width="60" height="50" rx="4"/>
+    <text x="50" y="290" text-anchor="middle" class="lbl">User</text>
+    <rect class="gate" x="100" y="260" width="40" height="50" rx="4"/>
+    <text x="120" y="285" text-anchor="middle" class="lbl">G</text>
+    <rect class="box" x="160" y="260" width="60" height="50" rx="4"/>
+    <text x="190" y="290" text-anchor="middle" class="lbl">Agent</text>
+    <rect class="box" x="240" y="260" width="60" height="50" rx="4"/>
+    <text x="270" y="290" text-anchor="middle" class="lbl">Agent</text>
+    <rect class="box" x="320" y="260" width="60" height="50" rx="4"/>
+    <text x="350" y="290" text-anchor="middle" class="lbl">Tool</text>
+    <line x1="80"  y1="285" x2="98"  y2="285" stroke="#1b1d21" stroke-width="1.2" marker-end="url(#arr)"/>
+    <line x1="140" y1="285" x2="158" y2="285" stroke="#1b1d21" stroke-width="1.2" marker-end="url(#arr)"/>
+    <line x1="220" y1="285" x2="238" y2="285" stroke="#1b1d21" stroke-width="1.2" marker-end="url(#arr)"/>
+    <line x1="300" y1="285" x2="318" y2="285" stroke="#1b1d21" stroke-width="1.2" marker-end="url(#arr)"/>
+    <text x="200" y="338" text-anchor="middle" fill="#b1421c" class="sub">↑ gate is now three hops away from the action.</text>
+
+    <!-- separator -->
+    <line x1="500" y1="20" x2="500" y2="340" stroke="#d8d3c4" stroke-width="1" stroke-dasharray="4 4"/>
+
+    <!-- Right panel: envelope model -->
+    <text x="520" y="28" class="ttl">Identity as an envelope</text>
+    <text x="520" y="48" class="sub">Signed evidence travels with the work. Every hop signs.</text>
+
+    <rect class="box" x="520" y="80" width="80" height="60" rx="4"/>
+    <text x="560" y="115" text-anchor="middle" class="lbl">User</text>
+    <rect class="box" x="640" y="80" width="80" height="60" rx="4"/>
+    <text x="680" y="115" text-anchor="middle" class="lbl">Agent A</text>
+    <rect class="box" x="760" y="80" width="80" height="60" rx="4"/>
+    <text x="800" y="115" text-anchor="middle" class="lbl">Agent B</text>
+    <rect class="box" x="880" y="80" width="100" height="60" rx="4"/>
+    <text x="930" y="115" text-anchor="middle" class="lbl">Tool</text>
+
+    <!-- envelope tags floating above the arrows -->
+    <line x1="600" y1="110" x2="638" y2="110" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr)"/>
+    <line x1="720" y1="110" x2="758" y2="110" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr)"/>
+    <line x1="840" y1="110" x2="878" y2="110" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <rect class="env" x="608" y="160" width="60" height="36" rx="3"/>
+    <text x="638" y="183" text-anchor="middle" class="sub">env₀</text>
+    <rect class="env" x="728" y="160" width="60" height="36" rx="3"/>
+    <text x="758" y="183" text-anchor="middle" class="sub">env₁</text>
+    <rect class="env" x="848" y="160" width="60" height="36" rx="3"/>
+    <text x="878" y="183" text-anchor="middle" class="sub">env₂</text>
+
+    <line x1="638" y1="138" x2="638" y2="158" stroke="#b1421c" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <line x1="758" y1="138" x2="758" y2="158" stroke="#b1421c" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <line x1="878" y1="138" x2="878" y2="158" stroke="#b1421c" stroke-width="1.2" stroke-dasharray="3 3"/>
+
+    <text x="638" y="220" text-anchor="middle" class="sub">scopes ⊇ env₁</text>
+    <text x="758" y="220" text-anchor="middle" class="sub">scopes ⊇ env₂</text>
+    <text x="878" y="220" text-anchor="middle" class="sub">scope check</text>
+
+    <!-- audit chain at the bottom -->
+    <text x="520" y="270" class="ttl">…and one audit chain ties them all back to the user.</text>
+    <line x1="640" y1="295" x2="950" y2="295" stroke="#1b1d21" stroke-width="1" marker-end="url(#arr)"/>
+    <circle cx="640" cy="295" r="5" fill="#b1421c"/>
+    <circle cx="730" cy="295" r="5" fill="#b1421c"/>
+    <circle cx="820" cy="295" r="5" fill="#b1421c"/>
+    <circle cx="910" cy="295" r="5" fill="#b1421c"/>
+    <text x="640" y="320" text-anchor="middle" class="sub">issue</text>
+    <text x="730" y="320" text-anchor="middle" class="sub">delegate</text>
+    <text x="820" y="320" text-anchor="middle" class="sub">delegate</text>
+    <text x="910" y="320" text-anchor="middle" class="sub">exercise</text>
+  </svg>
+  <figcaption>
+    <strong>Figure 1.</strong> Door model on the left; envelope model on the right.
+    The door check works once. The envelope keeps working at every hop.
+  </figcaption>
+</div>
+
+<p>
+  Three failure patterns appear the moment a session-based gate meets an agent
+  chain.
+</p>
+
+<p>
+  The first is <strong>session inflation</strong>. The user grants broad
+  consent at login. The first agent receives that authority and passes it,
+  undifferentiated, to the next. By the time the tool call fires, the system
+  is acting with the user's full standing on a sub-task the user did not
+  specifically approve. Nothing on the wire records the narrowing the
+  architect intended — because the narrowing was never material.
+</p>
+
+<p>
+  The second is <strong>cross-tenant ambiguity</strong>. When agent A in
+  tenant A calls agent B in tenant B, whose identity is on the wire? The
+  user's? Tenant A's service account? Both? A trust decision is being made
+  somewhere, but it usually lives in a request header someone added because
+  the demo failed without it. Federation by side-effect is the operating
+  model. Audit becomes a forensic exercise.
+</p>
+
+<p>
+  The third is <strong>opacity at the tool surface</strong>. The agent's
+  capability set expands at runtime — a SKILL.md is loaded, a retrieval
+  result becomes a tool spec, a plugin is fetched from a registry. The
+  gateway sees a call go out. It does not see what the agent decided to run
+  on the way there.
+</p>
+
+<p>
+  All three failure modes share an address that is not a team or a person.
+  They share an architecture. The architecture says <em>identity ends at the
+  boundary</em> — and the substrate to say otherwise was missing from every
+  catalogue when the work began. The remediation is not new teams. It is the
+  missing primitive.
+</p>
+
+<p class="pullquote">
+  The architecture fails not because the choices were wrong, but because the
+  question was wrong. The new question is: what travels with the work?
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec-3">
+<h2><span class="num">3.</span>The shift: identity as substrate <span class="layer-label">For leadership</span></h2>
+
+<p>
+  In aviation, the Flight Data Recorder does not switch on when an alarm
+  sounds. By the time an alarm sounds, the relevant data has already been
+  produced. The FDR runs continuously. Every control input, every sensor
+  reading, every crew utterance is captured against a synchronised clock so
+  that — months later — investigators can ask <em>which input produced which
+  response</em> and get an answer that is not in dispute.
+</p>
+
+<p>
+  Identity for agentic systems needs to operate the same way. Not a moment.
+  A continuous, signed record of authority, produced by the system as it
+  works, against a synchronised clock and a known set of issuing keys.
+</p>
+
+<p class="pullquote">
+  Identity is not a moment. It is a material. Identity is not a check. It is
+  a substrate the system carries.
+</p>
+
+<p>
+  Three operating properties follow from treating identity as substrate
+  rather than as event:
+</p>
+
+<ul>
+  <li>
+    <strong>It travels with the work.</strong> An envelope is sent on every
+    hop, not minted once and forgotten. Every recipient sees what authorised
+    the call <em>at the moment</em> the call was made.
+  </li>
+  <li>
+    <strong>It attenuates as it crosses boundaries.</strong> Each delegation
+    produces a child envelope whose capabilities are a strict subset of the
+    parent's. Authority can only narrow.
+  </li>
+  <li>
+    <strong>It is signed against a chain.</strong> Every transition is
+    countersigned against the previous transition's commitment. The chain is
+    inspectable and replayable end to end.
+  </li>
+</ul>
+
+<p>
+  The substrate is not a new layer in the stack. It is the deliberate
+  carrier of three operating concerns that today get split across half a
+  dozen subsystems: authentication, authorisation, delegation, audit, and
+  the recognition of foreign identities. Naming the substrate forces those
+  concerns to compose, instead of drifting apart.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec-4">
+<h2><span class="num">4.</span>The envelope: what it carries <span class="layer-label tech">Technical</span></h2>
+
+<p>
+  An access token tells the resource what the caller is permitted to do. An
+  envelope tells the resource what already happened on the way to the call.
+</p>
+
+<p class="pullquote">
+  A token grants. An envelope attests.
+</p>
+
+<p>
+  An envelope is a structured, signed record with eight properties.
+  Validation in <span class="mono">strict</span> mode enforces all eight.
+  No envelope reaches a policy decision until every property is present and
+  cryptographically vouched for.
+</p>
+
+<div class="figure">
+  <!-- Figure 2: envelope anatomy -->
+  <svg viewBox="0 0 980 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Anatomy of an identity envelope: eight fields grouped into identity, capability, lineage, lifecycle, and proof.">
+    <style>
+      .ttl  { font: 700 16px "Inter", system-ui, sans-serif; fill: #1b1d21; }
+      .grp  { font: 600 12px "Inter", system-ui, sans-serif; fill: #b1421c; letter-spacing: .12em; text-transform: uppercase; }
+      .key  { font: 600 13px "JetBrains Mono", "SF Mono", Menlo, monospace; fill: #1b1d21; }
+      .val  { font: 12px "Inter", system-ui, sans-serif; fill: #6a7079; }
+      .box  { fill: #fff; stroke: #d8d3c4; stroke-width: 1; }
+      .grpbox { fill: #fbfaf6; stroke: #b1421c; stroke-width: 1; }
+      .seal { fill: #b1421c; }
+    </style>
+    <!-- outer envelope -->
+    <rect x="20" y="40" width="940" height="320" rx="6" fill="#fbfaf6" stroke="#1b1d21" stroke-width="1.5"/>
+    <text x="40" y="32" class="ttl">Identity envelope</text>
+
+    <!-- Identity group -->
+    <rect class="grpbox" x="40" y="60" width="220" height="140" rx="4"/>
+    <text x="50" y="78" class="grp">Identity</text>
+    <text x="50" y="106" class="key">subject</text>
+    <text x="50" y="122" class="val">spiffe://tenant-a.demo/agents/orch</text>
+    <text x="50" y="148" class="key">trust_domain</text>
+    <text x="50" y="164" class="val">spiffe://tenant-a.demo</text>
+    <text x="50" y="186" class="val">— who is acting, in whose system</text>
+
+    <!-- Capability group -->
+    <rect class="grpbox" x="280" y="60" width="220" height="140" rx="4"/>
+    <text x="290" y="78" class="grp">Capability</text>
+    <text x="290" y="106" class="key">scopes</text>
+    <text x="290" y="122" class="val">[tasks:execute:supply,</text>
+    <text x="290" y="138" class="val"> &#160;tool:docs:search]</text>
+    <text x="290" y="160" class="val">— what may be invoked, nothing more</text>
+
+    <!-- Lineage group -->
+    <rect class="grpbox" x="520" y="60" width="220" height="140" rx="4"/>
+    <text x="530" y="78" class="grp">Lineage</text>
+    <text x="530" y="106" class="key">parent_audit_ref</text>
+    <text x="530" y="122" class="val">audit:demo5:003</text>
+    <text x="530" y="148" class="key">delegation_depth</text>
+    <text x="530" y="164" class="val">2  &#160;(of max 8)</text>
+    <text x="530" y="186" class="val">— where this came from, how far it is</text>
+
+    <!-- Lifecycle group -->
+    <rect class="grpbox" x="760" y="60" width="180" height="140" rx="4"/>
+    <text x="770" y="78" class="grp">Lifecycle</text>
+    <text x="770" y="106" class="key">issued_at</text>
+    <text x="770" y="122" class="val">2026-06-11T09:14:22Z</text>
+    <text x="770" y="148" class="key">expires_at</text>
+    <text x="770" y="164" class="val">2026-06-11T09:24:22Z</text>
+    <text x="770" y="186" class="key">state</text>
+    <text x="770" y="200" class="val">active | revoked</text>
+
+    <!-- Proof group spanning the bottom -->
+    <rect class="grpbox" x="40" y="222" width="900" height="120" rx="4"/>
+    <text x="50" y="240" class="grp">Proof</text>
+    <text x="50" y="266" class="key">signature  (JWT-SVID, Ed25519)</text>
+    <text x="50" y="284" class="val">eyJhbGciOiJFZERTQSIsImtpZCI6ImQwNDFiMTM0MjdkNzg0YTEifQ.eyJzdWIi…</text>
+    <text x="50" y="312" class="val">— signed by stable key bound to subject, verified against trust-domain JWKS.</text>
+
+    <!-- Seal -->
+    <circle class="seal" cx="900" cy="282" r="22" opacity="0.85"/>
+    <text x="900" y="287" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="11" fill="#fff" font-weight="700">SEAL</text>
+  </svg>
+  <figcaption>
+    <strong>Figure 2.</strong> Eight properties in four groups: <em>identity</em>,
+    <em>capability</em>, <em>lineage</em>, <em>lifecycle</em>, plus a
+    cryptographic <em>proof</em>. Validation at <span class="mono">strict</span>
+    requires every property.
+  </figcaption>
+</div>
+
+<p>
+  The closest cross-industry parallel is the <strong>anaesthesia
+  record</strong>. An anaesthetist does not hand a patient to recovery on a
+  verbal report. The record carries: who was given what, by whom, when, at
+  what dose, with what response, signed at handover. The receiving team
+  inspects the record before they accept the patient — not the anaesthetist's
+  word for it, the record itself. A handover without the record is a
+  protocol violation, not a courtesy lapse.
+</p>
+
+<p>
+  The envelope serves the same purpose. The receiving agent does not accept
+  the call on the caller's word. It accepts the call because the envelope —
+  inspectable, signed, traceable to its issuer — vouches for what came
+  before.
+</p>
+
+<h3>Transport</h3>
+
+<p>
+  Envelopes travel in a single header, <span class="mono">Signature-Key</span>,
+  carrying a JWT-SVID. The choice of JWT-SVID matters: it is the
+  SPIFFE-blessed format for short-lived workload credentials, it is
+  cryptographically pinned to a stable signing key, and it is already
+  understood by the gateways and proxies most enterprises operate. The
+  envelope rides existing rails. It does not require a new transport.
+</p>
+
+<pre><code>POST /process HTTP/1.1
+Host: worker.tenant-a.demo
+Signature-Key: eyJhbGciOiJFZERTQSIsImtpZCI6…
+Content-Type: application/json
+
+{ "task": "summarise", ... }</code></pre>
+
+<p>
+  Two things are not in that header that you might expect. There is no
+  bearer token: the JWT-SVID is the credential, and it is not interchangeable
+  with the agent's permanent identity. There is no separate
+  <span class="mono">X-User-Id</span> or <span class="mono">X-Tenant</span>
+  field: those are claims inside the SVID, and only the SVID's signature
+  vouches for them. Anything else is a hint, not evidence.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec-5">
+<h2><span class="num">5.</span>Delegation and attenuation <span class="layer-label tech">Technical</span></h2>
+
+<p>
+  OAuth sub-tokens can in principle carry less authority than their parent.
+  In practice — and the empirical record on this is unambiguous — they often
+  carry more, because the issuing service rewrites scopes silently when the
+  client asks for something the parent did not have. The protocol allows it.
+  Operators do it because the alternative is a support ticket.
+</p>
+
+<p>
+  The envelope model forbids it by construction.
+</p>
+
+<p class="pullquote">
+  Authority does not multiply. It can only divide.
+</p>
+
+<div class="figure">
+  <!-- Figure 3: attenuation lattice -->
+  <svg viewBox="0 0 900 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Delegation as attenuation: child envelopes can only carry a subset of parent scopes; expansion is refused at issue time.">
+    <defs>
+      <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1b1d21"/>
+      </marker>
+      <marker id="arr3-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#a02828"/>
+      </marker>
+    </defs>
+    <style>
+      .ttl  { font: 700 16px "Inter", system-ui, sans-serif; fill: #1b1d21; }
+      .lbl  { font: 600 13px "Inter", system-ui, sans-serif; fill: #1b1d21; }
+      .sub  { font: 12px "Inter", system-ui, sans-serif; fill: #6a7079; }
+      .mono { font: 12px "JetBrains Mono", "SF Mono", Menlo, monospace; fill: #1b1d21; }
+      .ok   { fill: #2f6f3a; }
+      .bad  { fill: #a02828; }
+      .env  { fill: #efebdc; stroke: #b1421c; stroke-width: 1.5; }
+      .env2 { fill: #f5f2e2; stroke: #b1421c; stroke-width: 1.5; }
+    </style>
+
+    <text x="20" y="28" class="ttl">Attenuation lattice — every child is a subset of its parent</text>
+
+    <!-- root envelope -->
+    <rect class="env" x="320" y="56" width="260" height="58" rx="6"/>
+    <text x="450" y="78" text-anchor="middle" class="lbl">env₀ (user)</text>
+    <text x="450" y="98" text-anchor="middle" class="mono">{ tasks:plan, tasks:execute }</text>
+
+    <!-- child envelopes -->
+    <rect class="env" x="80"  y="180" width="240" height="58" rx="6"/>
+    <text x="200" y="202" text-anchor="middle" class="lbl">env₁ (orchestrator)</text>
+    <text x="200" y="222" text-anchor="middle" class="mono">{ tasks:execute }</text>
+
+    <rect class="env" x="580" y="180" width="240" height="58" rx="6"/>
+    <text x="700" y="202" text-anchor="middle" class="lbl">env₂ (supply-chain)</text>
+    <text x="700" y="222" text-anchor="middle" class="mono">{ tasks:execute:supply }</text>
+
+    <!-- grandchild -->
+    <rect class="env2" x="80" y="290" width="240" height="58" rx="6"/>
+    <text x="200" y="312" text-anchor="middle" class="lbl">env₃ (mcp-caller)</text>
+    <text x="200" y="332" text-anchor="middle" class="mono">{ tool:docs:search }</text>
+
+    <!-- attenuation arrows OK -->
+    <line x1="380" y1="114" x2="220" y2="178" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr3)"/>
+    <text x="270" y="148" class="sub">attenuate ⊂</text>
+
+    <line x1="520" y1="114" x2="680" y2="178" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr3)"/>
+    <text x="600" y="148" class="sub">attenuate ⊂</text>
+
+    <line x1="200" y1="238" x2="200" y2="288" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr3)"/>
+    <text x="220" y="266" class="sub">attenuate ⊂</text>
+
+    <!-- forbidden expansion -->
+    <path d="M 580 320 Q 700 250 700 240" fill="none" stroke="#a02828" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arr3-red)"/>
+    <text x="640" y="300" class="bad" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600">expansion refused</text>
+    <text x="640" y="316" class="sub">scope_not_in_effective</text>
+
+    <!-- legend -->
+    <text x="20" y="364" class="sub">— attenuate: child scopes ⊂ parent scopes &#160;·&#160; expansion: child requests scope parent does not have &#160;→&#160; refused at issue time, not at the gate.</text>
+  </svg>
+  <figcaption>
+    <strong>Figure 3.</strong> Delegation forms a lattice that only narrows.
+    Attempting to expand fails at issue time with
+    <span class="mono">scope_not_in_effective</span> — before the envelope
+    is signed, before anything goes on the wire.
+  </figcaption>
+</div>
+
+<p>
+  Three structural properties hold by construction.
+</p>
+
+<p>
+  Scopes can only narrow. A delegation request is validated against the
+  effective scopes of the parent envelope; any scope not in that set causes
+  the issuer to refuse, with the deny reason
+  <span class="mono">scope_not_in_effective</span>. This is enforced before
+  the new SVID is signed. There is no envelope on the wire that ever carried
+  expanded authority.
+</p>
+
+<p>
+  Depth is bounded. Each child increments
+  <span class="mono">delegation_depth</span>. Operators set a maximum (default
+  eight) past which further delegation is refused, full stop. The bound
+  exists because runaway recursive delegation has no good failure mode: it
+  produces audit trees with thousands of leaves and no diagnostic value.
+  Stopping at a known depth keeps the audit chain comprehensible.
+</p>
+
+<p>
+  Lineage is cryptographic. Each child carries the parent's audit reference
+  and is signed against it. A reviewer presented with a leaf envelope can
+  walk the chain back to the root issuance without consulting any external
+  database. The chain is self-evidencing.
+</p>
+
+<p>
+  The cross-industry mechanism is the <strong>two-key principle</strong> from
+  nuclear command-and-control. Two keys must be turned to launch. The
+  operator at the second key cannot turn it without the first key's holder
+  having turned theirs. There is no protocol path that lets the second
+  operator turn both. The envelope works the same way: the child holds a
+  key, but it is the parent's prior signature that unlocks what the child's
+  key can do.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec-6">
+<h2><span class="num">6.</span>Trust domains and federation <span class="layer-label tech">Technical</span></h2>
+
+<p>
+  Multi-tenant deployments tend to handle cross-tenant calls by accident.
+  An API key. A reverse-proxy header. A service account whose membership
+  drifts from the team that uses it. Federation by side-effect produces
+  configurations no one team owns and no auditor can reconstruct.
+</p>
+
+<p>
+  A trust domain in this model is the unit of recognition. Inside one trust
+  domain, envelopes verify against a common set of issuing keys and a common
+  policy. Across trust domains, recognition is a deliberate, policy-checked
+  event with an audit record of its own.
+</p>
+
+<p class="pullquote">
+  Federation is not "we trust them." It is "we trust them to do exactly
+  this, until this time, with these caveats."
+</p>
+
+<div class="figure">
+  <!-- Figure 4: federation -->
+  <svg viewBox="0 0 1000 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Federation between two trust domains: cross-domain envelope crosses a federation policy that emits an audit record.">
+    <defs>
+      <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1b1d21"/>
+      </marker>
+    </defs>
+    <style>
+      .ttl  { font: 700 16px "Inter", system-ui, sans-serif; fill: #1b1d21; }
+      .lbl  { font: 600 13px "Inter", system-ui, sans-serif; fill: #1b1d21; }
+      .sub  { font: 12px "Inter", system-ui, sans-serif; fill: #6a7079; }
+      .mono { font: 12px "JetBrains Mono", "SF Mono", Menlo, monospace; fill: #1b1d21; }
+      .td-a { fill: #efebdc; stroke: #1b1d21; stroke-width: 1.5; stroke-dasharray: 5 4; }
+      .td-b { fill: #f4eee0; stroke: #1b1d21; stroke-width: 1.5; stroke-dasharray: 5 4; }
+      .box  { fill: #fff; stroke: #1b1d21; stroke-width: 1.2; }
+      .fed  { fill: #f0d9cf; stroke: #b1421c; stroke-width: 2; }
+    </style>
+
+    <!-- domain A -->
+    <rect class="td-a" x="20" y="40" width="420" height="300" rx="8"/>
+    <text x="40" y="64" class="lbl">Trust domain A</text>
+    <text x="40" y="80" class="sub">spiffe://tenant-a.demo &#160;·&#160; JWKS-A</text>
+
+    <rect class="box" x="60" y="120" width="120" height="56" rx="4"/>
+    <text x="120" y="153" text-anchor="middle" class="lbl">Agent A</text>
+
+    <rect class="box" x="240" y="120" width="120" height="56" rx="4"/>
+    <text x="300" y="153" text-anchor="middle" class="lbl">Gateway A</text>
+
+    <line x1="180" y1="148" x2="238" y2="148" stroke="#1b1d21" stroke-width="1.2" marker-end="url(#arr4)"/>
+
+    <text x="40" y="220" class="mono">env: { sub: spiffe://tenant-a/agent,</text>
+    <text x="40" y="238" class="mono">       scopes: [tenant-b:tasks:execute],</text>
+    <text x="40" y="256" class="mono">       caveat: spiffe.federation=true }</text>
+
+    <!-- federation gate -->
+    <rect class="fed" x="450" y="120" width="100" height="200" rx="6"/>
+    <text x="500" y="148" text-anchor="middle" class="lbl">Federation</text>
+    <text x="500" y="166" text-anchor="middle" class="lbl">policy</text>
+    <text x="500" y="200" text-anchor="middle" class="sub">verifies issuer</text>
+    <text x="500" y="216" text-anchor="middle" class="sub">checks caveat</text>
+    <text x="500" y="232" text-anchor="middle" class="sub">applies TTL</text>
+    <text x="500" y="248" text-anchor="middle" class="sub">checks jurisdiction</text>
+    <text x="500" y="282" text-anchor="middle" class="sub">emits FED_VERIFY</text>
+    <text x="500" y="298" text-anchor="middle" class="sub">audit record</text>
+
+    <!-- domain B -->
+    <rect class="td-b" x="560" y="40" width="420" height="300" rx="8"/>
+    <text x="580" y="64" class="lbl">Trust domain B</text>
+    <text x="580" y="80" class="sub">spiffe://tenant-b.demo &#160;·&#160; JWKS-B</text>
+
+    <rect class="box" x="600" y="120" width="120" height="56" rx="4"/>
+    <text x="660" y="153" text-anchor="middle" class="lbl">Gateway B</text>
+
+    <rect class="box" x="780" y="120" width="120" height="56" rx="4"/>
+    <text x="840" y="153" text-anchor="middle" class="lbl">Agent B</text>
+
+    <line x1="720" y1="148" x2="778" y2="148" stroke="#1b1d21" stroke-width="1.2" marker-end="url(#arr4)"/>
+    <line x1="360" y1="148" x2="448" y2="148" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr4)"/>
+    <line x1="552" y1="148" x2="598" y2="148" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr4)"/>
+
+    <text x="580" y="220" class="mono">B trusts A's JWKS for: scope</text>
+    <text x="580" y="238" class="mono">prefix tenant-b:*, max TTL 60s,</text>
+    <text x="580" y="256" class="mono">caveat spiffe.federation required.</text>
+
+    <!-- failure list -->
+    <text x="20" y="368" class="sub">Failure modes at the policy: <tspan font-family="JetBrains Mono, monospace" fill="#a02828">trust_domain_not_trusted</tspan> · <tspan font-family="JetBrains Mono, monospace" fill="#a02828">jurisdiction_denied</tspan> · <tspan font-family="JetBrains Mono, monospace" fill="#a02828">ttl_exceeded</tspan> · <tspan font-family="JetBrains Mono, monospace" fill="#a02828">subject_revoked</tspan>.</text>
+  </svg>
+  <figcaption>
+    <strong>Figure 4.</strong> A cross-domain envelope crosses the federation
+    policy at the receiving gateway. The policy emits its own audit record
+    — <span class="mono">FED_VERIFY</span> — so the recognition event is
+    inspectable, not implicit.
+  </figcaption>
+</div>
+
+<p>
+  A <span class="mono">FederationPolicy</span> in the receiving domain
+  declares, in one place, what it accepts: which issuers, what scope
+  prefixes, what jurisdiction constraints, what TTL ceiling, what caveats
+  must be present. Anything else is refused with a named reason. The four
+  named failure modes — <span class="mono">trust_domain_not_trusted</span>,
+  <span class="mono">jurisdiction_denied</span>,
+  <span class="mono">ttl_exceeded</span>,
+  <span class="mono">subject_revoked</span> — produce gateway-level
+  responses that an operator can grep for.
+</p>
+
+<p>
+  The pattern echoes <strong>diplomatic mutual recognition</strong>. Two
+  jurisdictions agree, in writing, on which documents they will accept from
+  each other, for which purposes, until when. A passport stamped by jurisdiction
+  A is honoured by jurisdiction B because the treaty says it is — not because
+  jurisdiction B trusts whoever is at the desk that day. The treaty is the
+  policy. The stamp is the envelope. The desk is the gateway.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec-7">
+<h2><span class="num">7.</span>Material actions: in-process enforcement <span class="layer-label tech">Technical</span></h2>
+
+<p>
+  The gateway sees calls. It does not see what happens between calls.
+</p>
+
+<p>
+  When an agent loads a SKILL.md from a catalogue, that SKILL.md becomes part
+  of the agent's behaviour. When an agent retrieves a tool spec from a
+  registry, that spec defines a capability the agent now has. When an agent
+  evaluates a planner's response, that response shapes what the agent does
+  next. None of those events cross a network boundary the gateway can
+  inspect. All of them change what the agent is about to do.
+</p>
+
+<p class="pullquote">
+  The gateway is a turnstile. The material action is the airlock.
+</p>
+
+<p>
+  A <strong>material action</strong> is a programmatic guard inside the
+  agent process that runs before any state-changing operation. It receives
+  the current envelope, the operation's identifier, and a required scope. It
+  refuses the operation if the scope is not in the envelope's effective set.
+  The refusal emits an audit record with the same chain identifier as the
+  containing call, so the in-process denial appears in the same audit chain
+  as the network-level events that surrounded it.
+</p>
+
+<pre><code>identity.run_material_action(
+    envelope=current_envelope(),
+    action_type="skill.load",
+    required_scope=f"claude-skill:{skill_name}",
+    fn=lambda: execute_skill_md(skill_md_content),
+)</code></pre>
+
+<p>
+  In Demo 4 of the reference implementation, the gateway has already let an
+  A2A skill invocation through and allowed an MCP tool call that fetched
+  SKILL.md content. The envelope satisfied both gateway-level checks. The
+  fetched SKILL.md content lands inside the agent. The
+  <span class="mono">material_action</span> guard runs. If the envelope's
+  scopes do not include <span class="mono">claude-skill:cloud-finops</span>,
+  the SKILL.md instructions never execute. The fetch was legal. The
+  interpretation was not. The gateway had no way to make that distinction.
+  The material action did.
+</p>
+
+<p>
+  The cross-industry mechanism is the <strong>cockpit voice recorder</strong>.
+  A flight data recorder captures sensor and control inputs — the network
+  events of the flight. A cockpit voice recorder captures what happens
+  between radio calls — the conversations, the alarms, the silences. A modern
+  accident investigation needs both. One without the other leaves a blind
+  spot exactly where the human decisions happened.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec-8">
+<h2><span class="num">8.</span>The audit chain: replayable provenance <span class="layer-label tech">Technical</span></h2>
+
+<p>
+  Logs are diary entries. They record what someone chose to write down. If
+  the writer was wrong, careless, or compromised, the diary is wrong with
+  them. An audit chain has a different ontology: it is evidence the system
+  produced as it worked, signed against the last evidence it produced,
+  unforgeable from inside.
+</p>
+
+<div class="figure">
+  <!-- Figure 5: audit chain -->
+  <svg viewBox="0 0 980 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Audit chain with eight records and a Merkle tip; replay traces from the leaf back to the issuing user.">
+    <defs>
+      <marker id="arr5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1b1d21"/>
+      </marker>
+    </defs>
+    <style>
+      .ttl  { font: 700 16px "Inter", system-ui, sans-serif; fill: #1b1d21; }
+      .lbl  { font: 600 13px "Inter", system-ui, sans-serif; fill: #1b1d21; }
+      .sub  { font: 12px "Inter", system-ui, sans-serif; fill: #6a7079; }
+      .mono { font: 11px "JetBrains Mono", "SF Mono", Menlo, monospace; fill: #1b1d21; }
+      .rec  { fill: #fff; stroke: #1b1d21; stroke-width: 1.2; }
+      .root { fill: #efebdc; stroke: #b1421c; stroke-width: 2; }
+      .tip  { fill: #f0d9cf; stroke: #b1421c; stroke-width: 2; }
+    </style>
+
+    <text x="20" y="28" class="ttl">One audit chain — eight records, eight commitments, one tip</text>
+
+    <!-- record stack -->
+    <g>
+      <rect class="root" x="60" y="60"  width="600" height="34" rx="3"/>
+      <text x="80"  y="83" class="mono">001 ISSUE</text>
+      <text x="240" y="83" class="mono">user envelope minted at OIDC login</text>
+      <text x="660" y="83" class="sub">→ h₁</text>
+
+      <rect class="rec"  x="60" y="100" width="600" height="34" rx="3"/>
+      <text x="80"  y="123" class="mono">002 DELEGATE</text>
+      <text x="240" y="123" class="mono">user → orchestrator   scopes: [tasks:execute]</text>
+      <text x="660" y="123" class="sub">→ h₂ = H(h₁, rec₂)</text>
+
+      <rect class="rec"  x="60" y="140" width="600" height="34" rx="3"/>
+      <text x="80"  y="163" class="mono">003 DELEGATE</text>
+      <text x="240" y="163" class="mono">orch → supply-chain   scopes: [tasks:execute:supply]</text>
+      <text x="660" y="163" class="sub">→ h₃ = H(h₂, rec₃)</text>
+
+      <rect class="rec"  x="60" y="180" width="600" height="34" rx="3"/>
+      <text x="80"  y="203" class="mono">004 DELEGATE</text>
+      <text x="240" y="203" class="mono">supply → market-analysis  CROSS-DOMAIN, fed=true</text>
+      <text x="660" y="203" class="sub">→ h₄ = H(h₃, rec₄)</text>
+
+      <rect class="rec"  x="60" y="220" width="600" height="34" rx="3"/>
+      <text x="80"  y="243" class="mono">005 FED_VERIFY</text>
+      <text x="240" y="243" class="mono">gateway-B accepts cross-domain envelope</text>
+      <text x="660" y="243" class="sub">→ h₅</text>
+
+      <rect class="rec"  x="60" y="260" width="600" height="34" rx="3"/>
+      <text x="80"  y="283" class="mono">006 EXERCISE</text>
+      <text x="240" y="283" class="mono">A2A skill: research-with-skills invoked</text>
+      <text x="660" y="283" class="sub">→ h₆</text>
+
+      <rect class="rec"  x="60" y="300" width="600" height="34" rx="3"/>
+      <text x="80"  y="323" class="mono">007 MATERIAL_ACTION</text>
+      <text x="240" y="323" class="mono">in-process: SKILL.md load guarded</text>
+      <text x="660" y="323" class="sub">→ h₇</text>
+    </g>
+
+    <!-- Merkle tip -->
+    <rect class="tip" x="720" y="60" width="220" height="80" rx="6"/>
+    <text x="830" y="86" text-anchor="middle" class="lbl">Merkle tip</text>
+    <text x="830" y="106" text-anchor="middle" class="mono">h₇ = root</text>
+    <text x="830" y="124" text-anchor="middle" class="sub">recomputable from {rec₁..rec₇}</text>
+
+    <line x1="660" y1="100" x2="718" y2="100" stroke="#1b1d21" stroke-width="1.2" marker-end="url(#arr5)"/>
+
+    <!-- replay arrow -->
+    <text x="720" y="180" class="lbl">Replay</text>
+    <text x="720" y="200" class="sub">Given a leaf,</text>
+    <text x="720" y="216" class="sub">walk h_i ← h_{i-1}</text>
+    <text x="720" y="232" class="sub">back to the user.</text>
+
+    <!-- audit ref -->
+    <text x="720" y="280" class="lbl">If a regulator asks:</text>
+    <text x="720" y="298" class="sub">"who authorised this</text>
+    <text x="720" y="314" class="sub">web_search call?"</text>
+    <text x="720" y="332" class="sub">— walk the chain.</text>
+  </svg>
+  <figcaption>
+    <strong>Figure 5.</strong> Eight records form one chain. Each record's
+    commitment hash binds to the previous record's. The tip is the Merkle
+    root. Recomputing the tip from the individual records and matching it
+    against the stored value proves the chain has not been tampered with.
+  </figcaption>
+</div>
+
+<p>
+  The cross-industry mechanism is <strong>chain of custody</strong>. A
+  forensic sample is admissible because every handoff is signed and dated
+  by the person taking custody, the tape over the seal is tamper-evident,
+  and the chain of signatures, end to end, is what convinces a court that
+  the sample in evidence is the same one collected at the scene. Breaking
+  the chain at any point — a missing signature, a broken seal — invalidates
+  the sample regardless of how good the science is.
+</p>
+
+<p>
+  The audit chain operates by the same logic. Each record is signed against
+  the commitment of the previous one. A modification anywhere in the chain
+  changes the commitment, which breaks the chain at every record after it.
+  Tampering is not undetected; it is the chain's loudest failure mode.
+</p>
+
+<p class="pullquote">
+  If the agent can forge its own evidence, you have a diary, not a ledger.
+</p>
+
+<h3>What replay produces</h3>
+
+<p>
+  Replay is the operating capability the chain exists to provide. Given a
+  leaf event — a tool call, a write, a refusal — replay walks backward
+  through the chain to the originating envelope and presents:
+  the human user (or system principal) whose action seeded the chain; every
+  delegation that took place between that root and the leaf; every
+  federation crossing; every in-process material guard that ran; and the
+  exact scope set that authorised the leaf event.
+</p>
+
+<p>
+  Replay is not log-correlation. There are no joins across services. The
+  chain is one structure; walking it is one operation. The post-incident
+  review that today takes a week takes an hour.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec-9">
+<h2><span class="num">9.</span>Threat model: what this defends against <span class="layer-label tech">Technical</span></h2>
+
+<p>
+  Envelopes do not make agents safe. They make agent behaviour
+  <em>replayable</em>, which is a different claim. The distinction matters
+  because every honest threat model needs to name what it does not solve.
+</p>
+
+<p>
+  Five threats are addressed directly:
+</p>
+
+<table>
+  <thead>
+    <tr><th style="width:32%">Threat</th><th>How the model defends</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Scope expansion in transit.</strong> A downstream agent or proxy rewrites the call to request capabilities the originator did not grant.</td>
+      <td>The receiver verifies the envelope's signature against the trust-domain JWKS and refuses the call if the requested action is not in the envelope's effective scopes. The rewrite never goes through.</td>
+    </tr>
+    <tr>
+      <td><strong>Stale or revoked authority.</strong> An envelope is replayed after the issuing principal's status changed.</td>
+      <td>Every check resolves the envelope against the issuer's current lifecycle state. <span class="mono">subject_revoked</span> and <span class="mono">ttl_exceeded</span> deny at the gateway and emit audit records.</td>
+    </tr>
+    <tr>
+      <td><strong>Cross-tenant identity confusion.</strong> Calls cross tenant boundaries without an explicit recognition decision.</td>
+      <td>Federation is a typed event with a named policy. Cross-domain envelopes either pass a <span class="mono">FederationPolicy</span> check or are denied. No call crosses a trust boundary by accident.</td>
+    </tr>
+    <tr>
+      <td><strong>Dynamic capability loading.</strong> The agent loads a SKILL.md, tool spec, or instruction from a catalogue at runtime, and runs it.</td>
+      <td><span class="mono">material_action</span> guards execution against an in-process scope check. The gateway saw the <em>fetch</em>; the in-process check refuses the <em>interpretation</em>.</td>
+    </tr>
+    <tr>
+      <td><strong>Audit tampering.</strong> A compromised process attempts to falsify or remove records.</td>
+      <td>Records are committed in a hash chain whose tip is verifiable independently of the writer. Modification changes the tip, which fails verification on the next replay.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+  Three threats are <em>not</em> addressed, and saying so explicitly is part
+  of using the model responsibly:
+</p>
+
+<ul>
+  <li>
+    <strong>Model behavioural failures.</strong> An envelope cannot detect
+    that an agent is being subtly misled by a prompt injection, a poisoned
+    retrieval result, or a hallucinated tool spec. It can only record what
+    the agent then did. Replay tells you the model decided to call
+    <span class="mono">delete_all</span>; it does not tell you the agent
+    should have known better. That is a separate problem class.
+  </li>
+  <li>
+    <strong>Physical compromise of the issuing key.</strong> If the stable
+    signing key for a subject is exfiltrated, the attacker can mint
+    envelopes that pass every check. Key custody is the underlying root of
+    trust. HSM / TPM / TEE-backed keys move the bar; they do not eliminate
+    the threat.
+  </li>
+  <li>
+    <strong>Side-channel exfiltration of envelope contents.</strong> The
+    envelope is structured data on the wire. An agent that mishandles it
+    inside its process — logs it at a verbose level, copies it to a debug
+    file — leaks subject and scope information. The model does not enforce
+    confidentiality of envelopes against the process that holds them.
+  </li>
+</ul>
+
+<p>
+  The cross-industry mechanism here is <strong>defence-in-depth</strong>.
+  Each layer of the stack must fail predictably — open or closed — so that
+  the next layer can compose its assumptions against the previous one. The
+  envelope is one layer. It is the layer that makes provenance and
+  attenuation operational. It is not the layer that decides whether the
+  underlying model should be calling the tool in the first place. That
+  decision belongs to the agent's policy boundary, which is upstream of
+  identity and a different conversation.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec-10">
+<h2><span class="num">10.</span>Compared to OIDC, SPIFFE, and AAuth <span class="layer-label tech">Technical</span></h2>
+
+<p>
+  Three existing identity systems get cited as alternatives to a model like
+  this. Each solves a real problem. None solves the same problem this does.
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>System</th>
+      <th>Solves</th>
+      <th>Does not solve</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>OIDC / OAuth 2.0</strong></td>
+      <td>Human-to-service authentication and session-bound authorisation across a federation of services with one user at a keyboard.</td>
+      <td>Multi-hop agent chains; attenuated delegation; replayable provenance through tool calls and dynamic capability loading.</td>
+    </tr>
+    <tr>
+      <td><strong>SPIFFE / SPIRE</strong></td>
+      <td>Workload identity at the deployment plane: which process is which, signed with short-lived credentials issued to running workloads.</td>
+      <td>What the workload is currently authorised to do <em>on this call</em>; attenuation as authority moves between workloads; cross-workload audit chains.</td>
+    </tr>
+    <tr>
+      <td><strong>AAuth (agent JWKS)</strong></td>
+      <td>Per-call agent credentials with stable + ephemeral key separation; clean signing model for agent-to-agent calls.</td>
+      <td>The carrier object's content and lineage; in-process material actions; the audit chain that ties calls into one record.</td>
+    </tr>
+    <tr>
+      <td><strong>Identity envelope (this work)</strong></td>
+      <td>The carrier: structured, signed evidence of authority that travels with the work, attenuates across hops, federates across trust domains, and emits a replayable audit chain — including in-process material actions invisible to the network.</td>
+      <td>Workload identity itself (uses SPIFFE for that); the OIDC flow that authenticates the originating human; the policy engine that decides whether a given scope is appropriate (uses your existing engine).</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+  The four compose. OIDC authenticates the human. SPIFFE identifies the
+  workloads. AAuth signs the per-call credential. The envelope carries
+  structured evidence of authority through the chain those three make
+  possible. None of them is a substitute for any of the others. They are
+  four pieces of the same operating story.
+</p>
+
+<p>
+  The cross-industry parallel is again from aviation. The pre-flight checklist
+  (OIDC), the maintenance log (SPIFFE), the radio sign-on protocol (AAuth),
+  and the flight data recorder (envelope) all coexist. A flight that has only
+  one of the four is not a flight that is "mostly safe." It is a flight that
+  is missing an entire category of failure detection.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec-11">
+<h2><span class="num">11.</span>Deployment patterns <span class="layer-label tech">Technical</span></h2>
+
+<p>
+  Two enforcement surfaces, deployed together, do the real work: the
+  <strong>gateway</strong>, which intercepts network calls, and the
+  <strong>library</strong>, which enforces in-process decisions the gateway
+  cannot see.
+</p>
+
+<p class="pullquote">
+  Gateway-only is a wall around a building with no doors. Library-only is
+  doors everywhere and no wall.
+</p>
+
+<div class="figure">
+  <!-- Figure 6: five enforcement surfaces -->
+  <svg viewBox="0 0 1000 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Five surfaces of enforcement: gateway, federation, A2A skill, MCP tool, and in-process material action.">
+    <defs>
+      <marker id="arr6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1b1d21"/>
+      </marker>
+    </defs>
+    <style>
+      .ttl  { font: 700 16px "Inter", system-ui, sans-serif; fill: #1b1d21; }
+      .lbl  { font: 600 13px "Inter", system-ui, sans-serif; fill: #1b1d21; }
+      .sub  { font: 12px "Inter", system-ui, sans-serif; fill: #6a7079; }
+      .mono { font: 11px "JetBrains Mono", "SF Mono", Menlo, monospace; fill: #1b1d21; }
+      .gw   { fill: #efebdc; stroke: #b1421c; stroke-width: 2; }
+      .agent{ fill: #fff;    stroke: #1b1d21; stroke-width: 1.5; }
+      .tool { fill: #f5f2e2; stroke: #1b1d21; stroke-width: 1.2; }
+      .surf { fill: #f0d9cf; stroke: #b1421c; stroke-width: 1.5; }
+    </style>
+
+    <text x="20" y="28" class="ttl">Five enforcement surfaces — one envelope</text>
+
+    <!-- caller -->
+    <rect class="agent" x="20" y="70" width="120" height="60" rx="4"/>
+    <text x="80" y="98"  text-anchor="middle" class="lbl">Caller</text>
+    <text x="80" y="116" text-anchor="middle" class="sub">env₀</text>
+
+    <!-- gateway A -->
+    <rect class="gw"    x="180" y="60" width="160" height="80" rx="6"/>
+    <text x="260" y="86" text-anchor="middle" class="lbl">Gateway A</text>
+    <text x="260" y="104" text-anchor="middle" class="sub">① jwt verify</text>
+    <text x="260" y="118" text-anchor="middle" class="sub">② envelope check</text>
+    <text x="260" y="132" text-anchor="middle" class="sub">③ A2A / MCP policy</text>
+
+    <!-- federation policy at boundary -->
+    <rect class="surf"  x="380" y="60" width="140" height="80" rx="6"/>
+    <text x="450" y="92" text-anchor="middle" class="lbl">Federation</text>
+    <text x="450" y="110" text-anchor="middle" class="sub">cross-domain</text>
+    <text x="450" y="126" text-anchor="middle" class="sub">recognition</text>
+
+    <!-- gateway B -->
+    <rect class="gw"    x="560" y="60" width="160" height="80" rx="6"/>
+    <text x="640" y="86" text-anchor="middle" class="lbl">Gateway B</text>
+    <text x="640" y="104" text-anchor="middle" class="sub">① jwt verify</text>
+    <text x="640" y="118" text-anchor="middle" class="sub">② envelope check</text>
+    <text x="640" y="132" text-anchor="middle" class="sub">③ MCP policy</text>
+
+    <!-- agent B -->
+    <rect class="agent" x="760" y="60" width="220" height="200" rx="6"/>
+    <text x="870" y="86" text-anchor="middle" class="lbl">Agent B (in process)</text>
+
+    <!-- material action -->
+    <rect class="surf" x="780" y="100" width="180" height="50" rx="4"/>
+    <text x="870" y="124" text-anchor="middle" class="lbl">material_action()</text>
+    <text x="870" y="140" text-anchor="middle" class="sub">skill.load / write / …</text>
+
+    <!-- a2a skill -->
+    <rect class="surf" x="780" y="160" width="180" height="40" rx="4"/>
+    <text x="870" y="186" text-anchor="middle" class="lbl">A2A AgentSkill</text>
+
+    <!-- MCP tool from inside -->
+    <rect class="surf" x="780" y="210" width="180" height="40" rx="4"/>
+    <text x="870" y="236" text-anchor="middle" class="lbl">MCP tool invocation</text>
+
+    <!-- arrows across -->
+    <line x1="140" y1="100" x2="178" y2="100" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr6)"/>
+    <line x1="340" y1="100" x2="378" y2="100" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr6)"/>
+    <line x1="520" y1="100" x2="558" y2="100" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr6)"/>
+    <line x1="720" y1="100" x2="758" y2="100" stroke="#1b1d21" stroke-width="1.5" marker-end="url(#arr6)"/>
+
+    <!-- legend below -->
+    <text x="20" y="300" class="ttl">Where each surface fires</text>
+
+    <g transform="translate(20,320)">
+      <rect class="gw" x="0" y="0" width="14" height="14"/>
+      <text x="22" y="12" class="lbl">Gateway A / B</text>
+      <text x="22" y="28" class="sub">JWT signature, envelope verification, CEL rules on A2A method &amp; MCP tool name.</text>
+    </g>
+    <g transform="translate(360,320)">
+      <rect class="surf" x="0" y="0" width="14" height="14"/>
+      <text x="22" y="12" class="lbl">Federation policy</text>
+      <text x="22" y="28" class="sub">Cross-domain envelope recognition. Emits FED_VERIFY audit record.</text>
+    </g>
+    <g transform="translate(20,380)">
+      <rect class="surf" x="0" y="0" width="14" height="14"/>
+      <text x="22" y="12" class="lbl">material_action()</text>
+      <text x="22" y="28" class="sub">In-process guard on dynamic loading (SKILL.md, plugins, instructions).</text>
+    </g>
+    <g transform="translate(360,380)">
+      <rect class="surf" x="0" y="0" width="14" height="14"/>
+      <text x="22" y="12" class="lbl">A2A &amp; MCP CEL</text>
+      <text x="22" y="28" class="sub">Per-skill / per-tool authorisation at the network surface, evaluated against envelope scopes.</text>
+    </g>
+
+  </svg>
+  <figcaption>
+    <strong>Figure 6.</strong> The five surfaces share one envelope.
+    Different rules fire at different places; each emits its own audit
+    record into the same chain.
+  </figcaption>
+</div>
+
+<h3>Pattern A — gateway-managed</h3>
+
+<p>
+  Every A2A or MCP call traverses an agentgateway instance. The gateway
+  performs JWT-SVID signature verification, sends the envelope to an
+  ExtAuthz service for verification and effective-scope computation, and
+  evaluates CEL expressions against the resulting scope set. The gateway
+  emits structured access logs that include
+  <span class="mono">extauthz.subject</span>,
+  <span class="mono">extauthz.scopes</span>, and the
+  <span class="mono">audit_ref</span>.
+</p>
+
+<p>
+  This pattern covers everything the gateway can see: the call exists, the
+  envelope is valid, the scope is permitted for this method or this tool
+  name. It does not cover what the agent does between calls.
+</p>
+
+<h3>Pattern B — library-managed</h3>
+
+<p>
+  Inside the agent process, the autonomous-identity library exposes
+  <span class="mono">run_material_action</span> as a decorator around any
+  operation whose authority is not visible on the wire. SKILL.md loads,
+  retrieved-plugin executions, planner-emitted shell commands, and similar
+  dynamically-loaded behaviours pass through the guard. The guard reads the
+  current envelope, evaluates the required scope, and either runs the
+  function or raises with an audit-logged denial.
+</p>
+
+<p>
+  Library-managed enforcement covers what gateway-managed enforcement
+  cannot. The two are not redundant. The two compose.
+</p>
+
+<h3>Pattern C — gateway + library together (recommended)</h3>
+
+<p>
+  Production deployments run both. The gateway is the network-surface
+  enforcement point; the library is the in-process enforcement point. Both
+  emit into the same audit chain. A failure at either surface produces a
+  denial with a named reason and an audit record. A successful call has
+  records from both. The combination is what makes the audit chain
+  end-to-end: from the OIDC login at the UI to the leaf MCP tool call inside
+  a foreign tenant's agent, with every refusal and every in-process guard
+  visible in one record set.
+</p>
+
+<p>
+  The model echoes <strong>defence-in-depth in containment systems</strong>:
+  the primary containment vessel and the secondary containment building are
+  not redundant — each fails differently, each catches what the other
+  cannot. Removing either reduces the design to a single point of failure
+  no operator would accept.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec-12">
+<h2><span class="num">12.</span>Hard questions</h2>
+
+<div class="grid-2">
+  <div>
+    <h4>Why not just use SPIFFE-SVIDs directly?</h4>
+    <p>
+      SPIFFE answers "which workload is calling?" cleanly. It does not answer
+      "what authority does this call carry on behalf of which human, with
+      which delegated scopes, against which prior audit reference?" The
+      envelope uses SVIDs as its signing format and SPIFFE trust domains as
+      its boundary unit — and adds the carrier object SPIFFE deliberately
+      leaves out of scope.
+    </p>
+  </div>
+  <div>
+    <h4>What is the performance cost?</h4>
+    <p>
+      Verification is Ed25519 plus a JWKS lookup (cached). The ExtAuthz
+      round-trip adds single-digit milliseconds at p50 on commodity hardware.
+      The material-action guard is an in-process function call with no
+      network I/O. The dominant cost is the cryptographic verification, which
+      is comparable to TLS handshake amortisation and is bounded by the
+      number of hops, not the size of the payload.
+    </p>
+  </div>
+  <div>
+    <h4>Does adoption require every agent to upgrade at once?</h4>
+    <p>
+      No. Both the gateway and the library accept a fallback path where the
+      envelope is absent and the call is treated as low-trust — typically
+      restricted to read-only operations against non-sensitive resources.
+      Migration runs surface by surface: protect the federation boundary
+      first, then the MCP tool surface, then in-process material actions.
+      Each surface is independently shippable.
+    </p>
+  </div>
+  <div>
+    <h4>What happens if the audit log is unavailable?</h4>
+    <p>
+      The library supports a configurable failure mode: refuse all
+      operations whose audit record cannot be persisted
+      (<span class="mono">strict</span>), or proceed with a degraded record
+      (<span class="mono">development</span>). The conservative deployment
+      refuses, treating audit availability as a hard precondition.
+      The choice is operational, not architectural.
+    </p>
+  </div>
+  <div>
+    <h4>Can the envelope itself be forged?</h4>
+    <p>
+      Only by an attacker holding a stable signing key whose public component
+      is published in a trust-domain JWKS. The same threat that defeats every
+      other cryptographic identity system. The mitigations are the standard
+      ones — HSM / TPM / TEE-backed key custody, short JWKS rotation
+      intervals, and revocation lists that propagate within the SVID's TTL
+      window. The envelope inherits the security of the issuing key. It does
+      not weaken it.
+    </p>
+  </div>
+  <div>
+    <h4>How does this interact with existing policy engines?</h4>
+    <p>
+      Policy engines (OPA / Cedar) evaluate decisions; the envelope provides
+      the inputs. The model is composable: the gateway routes envelope claims
+      into the engine's decision context; the engine returns allow / deny
+      with a reason; the envelope's audit record references the engine's
+      decision identifier. Policy stays where you already write it. The
+      envelope changes what the policy gets to see.
+    </p>
+  </div>
+</div>
+
+<div class="callout">
+  <h4>If you read one sentence</h4>
+  <p>
+    Identity for agentic systems is not a check at the door. It is an
+    envelope that travels with the work, attenuates as it crosses boundaries,
+    federates across tenants, and gets evaluated at every surface — and the
+    audit chain it produces is what makes the whole system answerable in an
+    hour instead of a week.
+  </p>
+</div>
+
+</section>
+
+</main>
+
+<footer class="colophon">
+  <div class="wrap">
+    <p>
+      <strong>About this whitepaper.</strong> Companion document to the
+      <span class="mono">autonomous-identity</span> reference implementation
+      and the five-demo conference sequence built on agentgateway. The model
+      composes with OIDC at the UI, SPIFFE at the workload plane, and the
+      AAuth two-key signing pattern at the per-call surface.
+    </p>
+    <p>
+      Diagrams are inline SVG and print cleanly. Cross-industry parallels
+      cited: Flight Data Recorder (aviation), anaesthesia record
+      (healthcare), two-key principle (nuclear), diplomatic mutual
+      recognition (international law), cockpit voice recorder (aviation),
+      chain of custody (forensics), defence-in-depth (nuclear / chemical
+      containment).
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
